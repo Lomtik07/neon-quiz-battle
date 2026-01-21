@@ -21,11 +21,50 @@ class LocalDatabase {
             if (saved) {
                 this.data = JSON.parse(saved);
                 console.log('Данные загружены из LocalStorage');
+            } else {
+                this.createDefaultUsers();
             }
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
-            this.save(); // Создаем новые данные при ошибке
+            this.createDefaultUsers();
+            this.save();
         }
+    }
+    
+    // Создание тестовых пользователей
+    createDefaultUsers() {
+        this.data.users = [
+            {
+                id: 'user_1',
+                username: 'Админ',
+                password: 'admin123',
+                email: 'admin@quiz.com',
+                createdAt: new Date().toISOString(),
+                isGuest: false,
+                stats: {
+                    gamesPlayed: 15,
+                    gamesWon: 10,
+                    totalScore: 1250,
+                    averageScore: 83,
+                    bestScore: 150
+                }
+            },
+            {
+                id: 'user_2',
+                username: 'Игрок',
+                password: 'player123',
+                email: 'player@quiz.com',
+                createdAt: new Date().toISOString(),
+                isGuest: false,
+                stats: {
+                    gamesPlayed: 8,
+                    gamesWon: 3,
+                    totalScore: 650,
+                    averageScore: 81,
+                    bestScore: 120
+                }
+            }
+        ];
     }
     
     // Сохранение данных в LocalStorage
@@ -39,18 +78,20 @@ class LocalDatabase {
     }
     
     // Пользователи
-    createUser(username, email = null) {
+    createUser(username, email = null, password = null) {
         const user = {
             id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
             username: username,
             email: email,
+            password: password,
             createdAt: new Date().toISOString(),
-            isGuest: email === null,
+            isGuest: password === null,
             stats: {
                 gamesPlayed: 0,
                 gamesWon: 0,
                 totalScore: 0,
-                averageScore: 0
+                averageScore: 0,
+                bestScore: 0
             }
         };
         
@@ -59,7 +100,11 @@ class LocalDatabase {
         return user;
     }
     
-     findUserByCredentials(username, password) {
+    findUserById(userId) {
+        return this.data.users.find(user => user.id === userId);
+    }
+    
+    findUserByCredentials(username, password) {
         return this.data.users.find(user => 
             user.username === username && user.password === password
         );
@@ -172,7 +217,8 @@ class LocalDatabase {
     getRecentRooms() {
         return this.data.recentRooms
             .map(code => this.findRoomByCode(code))
-            .filter(room => room !== undefined);
+            .filter(room => room !== undefined)
+            .slice(0, 5);
     }
     
     // Статистика
@@ -186,7 +232,11 @@ class LocalDatabase {
                 user.stats.gamesWon++;
             }
             
-            user.stats.averageScore = user.stats.totalScore / user.stats.gamesPlayed;
+            if (gameResult.score > user.stats.bestScore) {
+                user.stats.bestScore = gameResult.score;
+            }
+            
+            user.stats.averageScore = Math.round(user.stats.totalScore / user.stats.gamesPlayed);
             this.save();
         }
     }
