@@ -733,3 +733,70 @@ footer {
     margin: 0 auto 30px;
     line-height: 1.5;
 }
+
+/* Переключатели */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    margin-right: 15px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 243, 255, 0.2);
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: #00f3ff;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: rgba(255, 0, 255, 0.4);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+    background-color: #ff00ff;
+}
+
+.switch-label {
+    display: inline-block;
+    vertical-align: super;
+    color: #aaa;
+}
+
+.settings-group {
+    background: rgba(0, 20, 40, 0.8);
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border: 1px solid rgba(0, 243, 255, 0.2);
+}
+
+.settings-group h3 {
+    color: #00f3ff;
+    margin-bottom: 15px;
+}
