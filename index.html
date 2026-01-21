@@ -15,6 +15,25 @@
         <p id="notificationText">Текст уведомления</p>
     </div>
 
+    <!-- Боковая панель -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+        <button class="sidebar-btn" id="profileBtn" title="Профиль">
+            <i class="fas fa-user"></i>
+        </button>
+        <button class="sidebar-btn" id="settingsBtn" title="Настройки">
+            <i class="fas fa-cog"></i>
+        </button>
+        <button class="sidebar-btn" id="logoutBtn" title="Выйти">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </div>
+
+    <!-- Загрузчик -->
+    <div class="fullscreen-loader" id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Загрузка игры...</div>
+    </div>
+
     <!-- Главный контейнер -->
     <div class="container" id="mainContainer">
         <!-- Заголовок -->
@@ -33,6 +52,21 @@
                 <div class="input-hint">Имя будет видно другим игрокам</div>
             </div>
             
+            <div class="password-group">
+                <input type="password" id="passwordInput" class="password-input" 
+                       placeholder="Введите пароль (минимум 6 символов)">
+                <button type="button" class="toggle-password" id="togglePassword">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <div class="password-strength" id="passwordStrength"></div>
+            </div>
+            
+            <div class="input-group" id="emailGroup" style="display: none;">
+                <input type="email" id="emailInput" class="input-field" 
+                       placeholder="Email (необязательно)">
+                <div class="input-hint">Для восстановления аккаунта</div>
+            </div>
+            
             <div class="button-group">
                 <button id="quickStartBtn" class="btn btn-primary">
                     <i class="fas fa-bolt"></i> БЫСТРЫЙ СТАРТ
@@ -40,10 +74,13 @@
                 <button id="createAccountBtn" class="btn btn-secondary">
                     <i class="fas fa-user-plus"></i> СОЗДАТЬ АККАУНТ
                 </button>
+                <button id="loginAccountBtn" class="btn btn-secondary" style="display: none;">
+                    <i class="fas fa-sign-in-alt"></i> ВОЙТИ В АККАУНТ
+                </button>
             </div>
             
             <div class="guest-note">
-                <i class="fas fa-info-circle"></i> Аккаунт сохранит вашу статистику
+                <i class="fas fa-info-circle"></i> Быстрый старт не требует пароля, но статистика не сохранится
             </div>
         </div>
 
@@ -113,23 +150,16 @@
 
         <!-- Подвал -->
         <footer>
-                <!-- Боковая панель -->
-    <div class="sidebar" id="sidebar" style="display: none;">
-        <button class="sidebar-btn" id="profileBtn" title="Профиль">
-            <i class="fas fa-user"></i>
-        </button>
-        <button class="sidebar-btn" id="settingsBtn" title="Настройки">
-            <i class="fas fa-cog"></i>
-        </button>
-        <button class="sidebar-btn" id="logoutBtn" title="Выйти">
-            <i class="fas fa-sign-out-alt"></i>
-        </button>
-    </div>
-
-    <!-- Загрузчик -->
-    <div class="fullscreen-loader" id="loader">
-        <div class="loader-spinner"></div>
-        <div class="loader-text">Загрузка игры...</div>
+            <div class="footer-content">
+                <p>Neon Quiz Battle Online &copy; 2023</p>
+                <p class="footer-sub">Играйте с друзьями в любое время!</p>
+                <div class="social-links">
+                    <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <!-- Экран профиля -->
@@ -272,23 +302,5 @@
     <!-- Скрипты -->
     <script src="db.js"></script>
     <script src="game.js"></script>
-    
-    <script>
-        // Инициализация при загрузке
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Neon Quiz Battle загружен!');
-            
-            // Загружаем данные
-            if (typeof Database !== 'undefined') {
-                Database.load();
-            }
-            
-            // Показываем уведомление
-            setTimeout(() => {
-                showNotification('Добро пожаловать!', 'Готовы к игре?', '#00f3ff');
-            }, 1000);
-        });
-    </script>
 </body>
 </html>
-
