@@ -113,16 +113,160 @@
 
         <!-- Подвал -->
         <footer>
-            <div class="footer-content">
-                <p>Neon Quiz Battle Online &copy; 2023</p>
-                <p class="footer-sub">Играйте с друзьями в любое время!</p>
-                <div class="social-links">
-                    <a href="#" class="social-link"><i class="fab fa-github"></i></a>
-                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                    <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
-                </div>
+                <!-- Боковая панель -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+        <button class="sidebar-btn" id="profileBtn" title="Профиль">
+            <i class="fas fa-user"></i>
+        </button>
+        <button class="sidebar-btn" id="settingsBtn" title="Настройки">
+            <i class="fas fa-cog"></i>
+        </button>
+        <button class="sidebar-btn" id="logoutBtn" title="Выйти">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </div>
+
+    <!-- Загрузчик -->
+    <div class="fullscreen-loader" id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Загрузка игры...</div>
+    </div>
+
+    <!-- Экран профиля -->
+    <div class="container" id="profileContainer" style="display: none;">
+        <div class="profile-header">
+            <div class="profile-avatar" id="userAvatar">U</div>
+            <div class="profile-info">
+                <div class="profile-name" id="userDisplayName">Пользователь</div>
+                <div class="profile-email" id="userEmail">guest@example.com</div>
             </div>
-        </footer>
+            <button class="btn btn-secondary" onclick="game.showScreen('menu')">
+                <i class="fas fa-arrow-left"></i> Назад
+            </button>
+        </div>
+
+        <div class="profile-stats">
+            <div class="stat-card">
+                <div class="stat-value" id="gamesPlayed">0</div>
+                <div class="stat-label">Игр сыграно</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="gamesWon">0</div>
+                <div class="stat-label">Побед</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalScore">0</div>
+                <div class="stat-label">Всего очков</div>
+            </div>
+        </div>
+
+        <div class="game-menu">
+            <a href="#" class="menu-card" onclick="game.showScreen('room')">
+                <div class="menu-icon">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="menu-title">Быстрая игра</div>
+                <div class="menu-description">Начните новую игру или присоединитесь к существующей</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.createQuiz()">
+                <div class="menu-icon">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <div class="menu-title">Создать опрос</div>
+                <div class="menu-description">Создайте свой собственный опрос для игры</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.showStats()">
+                <div class="menu-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="menu-title">Статистика</div>
+                <div class="menu-description">Просмотр вашей игровой статистики</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.showFriends()">
+                <div class="menu-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="menu-title">Друзья</div>
+                <div class="menu-description">Пригласите друзей поиграть вместе</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Главное меню -->
+    <div class="container" id="menuContainer" style="display: none;">
+        <header>
+            <h1><i class="fas fa-gamepad"></i> NEON QUIZ BATTLE</h1>
+            <p class="subtitle">Главное меню</p>
+        </header>
+
+        <div class="game-menu">
+            <a href="#" class="menu-card" onclick="game.showScreen('room')">
+                <div class="menu-icon">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="menu-title">ИГРАТЬ</div>
+                <div class="menu-description">Создайте комнату или присоединитесь к игре</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.showScreen('profile')">
+                <div class="menu-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="menu-title">ПРОФИЛЬ</div>
+                <div class="menu-description">Просмотр статистики и настройки аккаунта</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.createQuiz()">
+                <div class="menu-icon">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <div class="menu-title">СОЗДАТЬ ОПРОС</div>
+                <div class="menu-description">Создайте свои вопросы для игры</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.showLeaderboard()">
+                <div class="menu-icon">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="menu-title">ТАБЛИЦА ЛИДЕРОВ</div>
+                <div class="menu-description">Рейтинг лучших игроков</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.showFriends()">
+                <div class="menu-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="menu-title">ДРУЗЬЯ</div>
+                <div class="menu-description">Пригласите друзей поиграть вместе</div>
+            </a>
+
+            <a href="#" class="menu-card" onclick="game.showSettings()">
+                <div class="menu-icon">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="menu-title">НАСТРОЙКИ</div>
+                <div class="menu-description">Настройки звука, графики и управления</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Экран настроек -->
+    <div class="container" id="settingsContainer" style="display: none;">
+        <h2><i class="fas fa-cog"></i> НАСТРОЙКИ</h2>
+        <div class="settings-group">
+            <h3>Звук</h3>
+            <label class="switch">
+                <input type="checkbox" id="soundToggle" checked>
+                <span class="slider"></span>
+                <span class="switch-label">Включить звук</span>
+            </label>
+        </div>
+        <button class="btn btn-primary" onclick="game.showScreen('menu')">
+            <i class="fas fa-save"></i> СОХРАНИТЬ
+        </button>
     </div>
 
     <!-- Скрипты -->
@@ -147,3 +291,4 @@
     </script>
 </body>
 </html>
+
