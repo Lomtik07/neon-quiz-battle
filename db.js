@@ -59,8 +59,10 @@ class LocalDatabase {
         return user;
     }
     
-    findUserById(userId) {
-        return this.data.users.find(user => user.id === userId);
+     findUserByCredentials(username, password) {
+        return this.data.users.find(user => 
+            user.username === username && user.password === password
+        );
     }
     
     // Комнаты
