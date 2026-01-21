@@ -6,9 +6,53 @@
     <title>Neon Quiz Battle - Онлайн</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    console.log("Используется локальная версия без Firebase");
+    window.firebase = {
+    initializeApp: function() { 
+        console.log("Firebase отключен, используется локальная база");
+        return {
+            database: function() {
+                return {
+                    ref: function() {
+                        return {
+                            set: function(data) { 
+                                console.log("Данные сохранены локально");
+                                return Promise.resolve();
+                            },
+                            update: function(data) { 
+                                return Promise.resolve();
+                            },
+                            once: function() {
+                                return Promise.resolve({ val: function() { return null; } });
+                            },
+                            on: function() { /* заглушка */ },
+                            remove: function() { return Promise.resolve(); }
+                        };
+                    }
+                };
+            },
+            auth: function() {
+                return {
+                    onAuthStateChanged: function(callback) { 
+                        // Ничего не делаем
+                    },
+                    signInWithEmailAndPassword: function() {
+                        return Promise.reject(new Error("Firebase отключен"));
+                    },
+                    createUserWithEmailAndPassword: function() {
+                        return Promise.reject(new Error("Firebase отключен"));
+                    },
+                    signOut: function() {
+                        return Promise.resolve();
+                    }
+                };
+            }
+        };
+    }
+};
+
+// Загружаем локальную базу
+loadDB();
     <style>
         * {
             margin: 0;
@@ -1150,23 +1194,94 @@
     </div>
 
     <script>
-        // 🔥 Firebase конфигурация (ЗАМЕНИТЕ НА СВОЮ!)
-        const firebaseConfig = {
-            apiKey: "AIzaSyBJpQ81raWuqIagBYaMBX1Sr5mfH2q-uds",
-            authDomain: "neonquiz-5ab11.firebaseapp.com",
-            databaseURL: "https://neonquiz-5ab11-default-rtdb.firebaseio.com",
-            projectId: "neonquiz-5ab11",
-            storageBucket: "neonquiz-5ab11.firebasestorage.app",
-            messagingSenderId: "902090209070",
-            appId: "1:902090209070:web:deb8964a92f848cb5c2cbf",
-            measurementId: "G-VQPVCFQ1TW"
-        };
+        
+        // Простая локальная база данных
+const LocalDB = {
+    users: [],
+    quizzes: [],
+    rooms: {},
+    currentUser: null
+};
 
-        // Инициализация Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const auth = firebase.auth();
+// Загружаем данные из localStorage
+function loadDB() {
+    const saved = localStorage.getItem('quiz_app_data');
+    if (saved) {
+        const data = JSON.parse(saved);
+        Object.assign(LocalDB, data);
+    }
+}
 
+// Сохраняем данные в localStorage
+function saveDB() {
+    localStorage.setItem('quiz_app_data', JSON.stringify(LocalDB));
+}
+
+// Авторизация
+function signInWithEmail() {
+    const email = document.getElementById('emailInput').value || 'test@test.com';
+    const password = document.getElementById('passwordInput').value || '123456';
+    
+    if (!email || !password) {
+        showNotification('Ошибка', 'Заполните все поля', '#ff0000');
+        return;
+    }
+    
+    // Ищем пользователя
+    const user = LocalDB.users.find(u => u.email === email && u.password === password);
+    
+    if (user) {
+        LocalDB.currentUser = { ...user };
+        delete LocalDB.currentUser.password; // Не храним пароль в памяти
+        
+        saveDB();
+        showMainInterface();
+        showNotification('Успех!', `Добро пожаловать, ${user.displayName}!`, '#00ff9d');
+    } else {
+        showNotification('Ошибка', 'Неверный email или пароль', '#ff0000');
+    }
+}
+
+function signUpWithEmail() {
+    const email = document.getElementById('emailInput').value || 'user@example.com';
+    const password = document.getElementById('passwordInput').value || '123456';
+    const displayName = email.split('@')[0];
+    
+    if (!email || !password) {
+        showNotification('Ошибка', 'Заполните все поля', '#ff0000');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showNotification('Ошибка', 'Пароль должен быть не менее 6 символов', '#ff0000');
+        return;
+    }
+    
+    // Проверяем, существует ли пользователь
+    if (LocalDB.users.find(u => u.email === email)) {
+        showNotification('Ошибка', 'Пользователь с таким email уже существует', '#ff0000');
+        return;
+    }
+    
+    // Создаем нового пользователя
+    const newUser = {
+        id: 'user_' + Date.now(),
+        email: email,
+        password: password,
+        displayName: displayName,
+        createdAt: new Date().toISOString(),
+        isGuest: false
+    };
+    
+    LocalDB.users.push(newUser);
+    LocalDB.currentUser = { ...newUser };
+    delete LocalDB.currentUser.password;
+    
+    saveDB();
+    showMainInterface();
+    showNotification('Успех!', 'Регистрация завершена!', '#00ff9d');
+}
+        
         // Глобальные переменные игры
         const gameData = {
             user: null,
@@ -2830,4 +2945,5 @@
         }, 10000);
     </script>
 </body>
+
 </html>
