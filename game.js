@@ -1,10 +1,10 @@
-// game.js - Основная логика игры (оптимизированная)
+// game.js - Основная логика игры (исправленная версия)
 
 // Глобальные переменные
 let game = null;
 let Database = window.Database;
 
-// Функция для показа уведомлений (дублируем для надежности)
+// Функция для показа уведомлений
 function showNotification(title, text, color) {
     const notification = document.getElementById('notification');
     const titleEl = document.getElementById('notificationTitle');
@@ -41,28 +41,29 @@ class GameManager {
         // Загружаем пользователя
         this.loadSavedUser();
         
-        // Инициализируем обработчики после полной загрузки DOM
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.initialize());
-        } else {
-            setTimeout(() => this.initialize(), 100);
-        }
+        // Инициализируем обработчики сразу
+        this.init();
     }
     
     // Основная инициализация
-    initialize() {
+    init() {
         console.log('Начало инициализации...');
+        
+        // Сначала загружаем предпочтения
         this.loadUserPreferences();
+        
+        // Затем инициализируем обработчики
         this.initializeEventListeners();
         
         // Показываем экран в зависимости от состояния
-        if (this.currentState.user) {
-            setTimeout(() => this.showMainMenu(), 100);
-        } else {
-            setTimeout(() => this.showScreen('auth'), 100);
-        }
-        
-        console.log('GameManager инициализирован');
+        setTimeout(() => {
+            if (this.currentState.user && !this.currentState.user.isGuest) {
+                this.showMainMenu();
+            } else {
+                this.showScreen('auth');
+            }
+            console.log('GameManager инициализирован');
+        }, 100);
     }
     
     // Загрузка сохраненного пользователя
@@ -89,9 +90,13 @@ class GameManager {
     
     // Загрузка предпочтений пользователя
     loadUserPreferences() {
-        const nameInput = document.getElementById('playerNameInput');
-        if (nameInput && this.currentState.playerName) {
-            nameInput.value = this.currentState.playerName;
+        try {
+            const nameInput = document.getElementById('playerNameInput');
+            if (nameInput && this.currentState.playerName) {
+                nameInput.value = this.currentState.playerName;
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки предпочтений:', error);
         }
     }
     
@@ -99,29 +104,29 @@ class GameManager {
     initializeEventListeners() {
         console.log('Инициализация обработчиков...');
         
-        // Быстрый старт
-        const quickStartBtn = document.getElementById('quickStartBtn');
-        if (quickStartBtn) {
-            quickStartBtn.addEventListener('click', () => this.quickStart());
+        // Убедимся что DOM полностью загружен
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setupEventListeners());
+        } else {
+            this.setupEventListeners();
         }
+    }
+    
+    // Настройка обработчиков событий
+    setupEventListeners() {
+        console.log('Настройка обработчиков событий...');
+        
+        // Быстрый старт
+        this.setupButton('quickStartBtn', () => this.quickStart());
         
         // Создание аккаунта
-        const createAccountBtn = document.getElementById('createAccountBtn');
-        if (createAccountBtn) {
-            createAccountBtn.addEventListener('click', () => this.toggleAccountMode());
-        }
+        this.setupButton('createAccountBtn', () => this.toggleAccountMode());
         
         // Вход в аккаунт
-        const loginAccountBtn = document.getElementById('loginAccountBtn');
-        if (loginAccountBtn) {
-            loginAccountBtn.addEventListener('click', () => this.loginAccount());
-        }
+        this.setupButton('loginAccountBtn', () => this.loginAccount());
         
         // Переключение видимости пароля
-        const togglePasswordBtn = document.getElementById('togglePassword');
-        if (togglePasswordBtn) {
-            togglePasswordBtn.addEventListener('click', () => this.togglePasswordVisibility());
-        }
+        this.setupButton('togglePassword', () => this.togglePasswordVisibility());
         
         // Проверка сложности пароля
         const passwordInput = document.getElementById('passwordInput');
@@ -132,40 +137,22 @@ class GameManager {
         }
         
         // Создание комнаты
-        const createRoomBtn = document.getElementById('createRoomBtn');
-        if (createRoomBtn) {
-            createRoomBtn.addEventListener('click', () => this.createRoom());
-        }
+        this.setupButton('createRoomBtn', () => this.createRoom());
         
         // Присоединение к комнате
-        const joinRoomBtn = document.getElementById('joinRoomBtn');
-        if (joinRoomBtn) {
-            joinRoomBtn.addEventListener('click', () => this.joinRoom());
-        }
+        this.setupButton('joinRoomBtn', () => this.joinRoom());
         
         // Начать игру
-        const startGameBtn = document.getElementById('startGameBtn');
-        if (startGameBtn) {
-            startGameBtn.addEventListener('click', () => this.startGame());
-        }
+        this.setupButton('startGameBtn', () => this.startGame());
         
         // Покинуть комнату
-        const leaveRoomBtn = document.getElementById('leaveRoomBtn');
-        if (leaveRoomBtn) {
-            leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
-        }
+        this.setupButton('leaveRoomBtn', () => this.leaveRoom());
         
         // Копировать код
-        const copyCodeBtn = document.getElementById('copyCodeBtn');
-        if (copyCodeBtn) {
-            copyCodeBtn.addEventListener('click', () => this.copyRoomCode());
-        }
+        this.setupButton('copyCodeBtn', () => this.copyRoomCode());
         
         // Поделиться кодом
-        const shareCodeBtn = document.getElementById('shareCodeBtn');
-        if (shareCodeBtn) {
-            shareCodeBtn.addEventListener('click', () => this.shareRoomCode());
-        }
+        this.setupButton('shareCodeBtn', () => this.shareRoomCode());
         
         // Enter для присоединения
         const joinCodeInput = document.getElementById('joinCodeInput');
@@ -178,41 +165,48 @@ class GameManager {
         }
         
         // Кнопки боковой панели
-        const profileBtn = document.getElementById('profileBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        
-        if (profileBtn) {
-            profileBtn.addEventListener('click', () => this.showScreen('profile'));
-        }
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', () => this.showScreen('settings'));
-        }
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => this.logout());
-        }
+        this.setupButton('profileBtn', () => this.showScreen('profile'));
+        this.setupButton('settingsBtn', () => this.showScreen('settings'));
+        this.setupButton('logoutBtn', () => this.logout());
         
         // Мои опросы
-        const myQuizzesBtn = document.getElementById('myQuizzesBtn');
-        if (myQuizzesBtn) {
-            myQuizzesBtn.addEventListener('click', () => {
-                showNotification('Информация', 'Функция будет доступна после загрузки Quiz Manager', '#00f3ff');
-            });
-        }
+        this.setupButton('myQuizzesBtn', () => {
+            if (window.quizManager) {
+                window.quizManager.showMyQuizzes();
+            } else {
+                showNotification('Информация', 'Функция будет доступна после полной загрузки', '#00f3ff');
+            }
+        });
         
-        // Меню
+        // Настройка обработчиков меню
         this.setupMenuHandlers();
         
-        console.log('Обработчики инициализированы');
+        console.log('Обработчики настроены');
+    }
+    
+    // Универсальная функция настройки кнопок
+    setupButton(buttonId, handler) {
+        const button = document.getElementById(buttonId);
+        if (button) {
+            // Удаляем старые обработчики
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+            
+            // Добавляем новый обработчик
+            newButton.addEventListener('click', handler);
+            return newButton;
+        }
+        return null;
     }
     
     // Настройка обработчиков меню
     setupMenuHandlers() {
-        const menuCards = document.querySelectorAll('.menu-card');
-        menuCards.forEach(card => {
-            card.addEventListener('click', (e) => {
+        // Обработчики для карточек меню
+        document.addEventListener('click', (e) => {
+            const menuCard = e.target.closest('.menu-card');
+            if (menuCard) {
                 e.preventDefault();
-                const title = card.querySelector('.menu-title')?.textContent.trim();
+                const title = menuCard.querySelector('.menu-title')?.textContent.trim();
                 
                 switch(title) {
                     case 'ИГРАТЬ':
@@ -222,48 +216,73 @@ class GameManager {
                         this.showScreen('profile');
                         break;
                     case 'СОЗДАТЬ ВИКТОРИНУ':
-                        showNotification('Информация', 'Создание викторин скоро будет доступно', '#00f3ff');
+                        if (window.quizManager) {
+                            window.quizManager.showCreateQuiz();
+                        } else {
+                            showNotification('Информация', 'Создание викторин скоро будет доступно', '#00f3ff');
+                        }
                         break;
                     case 'ТАБЛИЦА ЛИДЕРОВ':
                         this.showLeaderboard();
                         break;
                     case 'МОИ ВИКТОРИНЫ':
-                        showNotification('Информация', 'Мои викторины скоро будут доступны', '#00f3ff');
+                        if (window.quizManager) {
+                            window.quizManager.showMyQuizzes();
+                        } else {
+                            showNotification('Информация', 'Мои викторины скоро будут доступны', '#00f3ff');
+                        }
                         break;
                     case 'НАСТРОЙКИ':
                         this.showScreen('settings');
                         break;
                 }
-            });
-        });
-    }
-    
-    // Сохранение имени игрока
-    savePlayerName() {
-        const nameInput = document.getElementById('playerNameInput');
-        if (nameInput) {
-            const name = nameInput.value.trim();
-            if (name) {
-                this.currentState.playerName = name;
-                localStorage.setItem('quiz_player_name', name);
-                return true;
             }
+        });
+        
+        // Кнопка назад в профиле
+        const backBtn = document.querySelector('.btn[onclick*="game.showScreen"]');
+        if (backBtn) {
+            backBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showScreen('menu');
+            });
         }
-        return false;
+        
+        // Кнопка сохранения настроек
+        const saveSettingsBtn = document.querySelector('.btn[onclick*="game.saveSettings"]');
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.saveSettings();
+            });
+        }
     }
     
     // Быстрый старт (гостевой режим)
     quickStart() {
-        if (!this.savePlayerName()) {
+        console.log('Быстрый старт...');
+        
+        // Получаем имя игрока
+        const nameInput = document.getElementById('playerNameInput');
+        if (!nameInput) {
+            showNotification('Ошибка', 'Поле имени не найдено', '#ff5555');
+            return;
+        }
+        
+        const name = nameInput.value.trim();
+        if (!name) {
             showNotification('Ошибка', 'Введите имя игрока', '#ff5555');
             return;
         }
         
+        this.currentState.playerName = name;
+        localStorage.setItem('quiz_player_name', name);
+        
         const guestUser = {
             id: 'guest_' + Date.now(),
-            username: this.currentState.playerName,
+            username: name,
             isGuest: true,
-            avatar: this.currentState.playerName.charAt(0).toUpperCase(),
+            avatar: name.charAt(0).toUpperCase(),
             stats: {
                 gamesPlayed: 0,
                 gamesWon: 0,
@@ -276,11 +295,13 @@ class GameManager {
         
         this.currentState.user = guestUser;
         this.showMainMenu();
+        
         showNotification('Гостевой режим', 'Для сохранения статистики создайте аккаунт', '#ffaa00');
     }
     
     // Переключение режима аккаунта
     toggleAccountMode() {
+        console.log('Переключение режима аккаунта...');
         const createBtn = document.getElementById('createAccountBtn');
         const loginBtn = document.getElementById('loginAccountBtn');
         const emailGroup = document.getElementById('emailGroup');
@@ -288,28 +309,46 @@ class GameManager {
         if (!createBtn) return;
         
         if (createBtn.textContent.includes('СОЗДАТЬ')) {
+            // Переключаемся на режим создания аккаунта
             createBtn.innerHTML = '<i class="fas fa-check"></i> ПОДТВЕРДИТЬ';
-            if (loginBtn) loginBtn.style.display = 'block';
+            createBtn.classList.remove('btn-secondary');
+            createBtn.classList.add('btn-primary');
+            
+            if (loginBtn) {
+                loginBtn.style.display = 'block';
+                loginBtn.classList.remove('btn-secondary');
+                loginBtn.classList.add('btn-primary');
+            }
             if (emailGroup) emailGroup.style.display = 'block';
         } else {
+            // Создаем аккаунт
             this.createAccount();
         }
     }
     
     // Создание аккаунта
     createAccount() {
-        if (!this.savePlayerName()) {
-            showNotification('Ошибка', 'Введите имя игрока', '#ff5555');
-            return;
-        }
+        console.log('Создание аккаунта...');
         
+        // Получаем данные из формы
+        const nameInput = document.getElementById('playerNameInput');
         const passwordInput = document.getElementById('passwordInput');
         const emailInput = document.getElementById('emailInput');
         
-        if (!passwordInput) return;
+        if (!nameInput || !passwordInput) {
+            showNotification('Ошибка', 'Форма не найдена', '#ff5555');
+            return;
+        }
         
+        const name = nameInput.value.trim();
         const password = passwordInput.value;
-        const email = emailInput ? emailInput.value : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+        
+        // Валидация
+        if (!name) {
+            showNotification('Ошибка', 'Введите имя игрока', '#ff5555');
+            return;
+        }
         
         if (!password || password.length < 6) {
             showNotification('Ошибка', 'Пароль должен содержать минимум 6 символов', '#ff5555');
@@ -319,7 +358,7 @@ class GameManager {
         // Проверяем, существует ли пользователь
         let existingUser = null;
         if (Database && Database.data && Database.data.users) {
-            existingUser = Database.data.users.find(u => u.username === this.currentState.playerName);
+            existingUser = Database.data.users.find(u => u.username === name);
         }
         
         if (existingUser) {
@@ -330,12 +369,12 @@ class GameManager {
         // Создаем пользователя
         const user = {
             id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-            username: this.currentState.playerName,
+            username: name,
             password: password,
             email: email || null,
             createdAt: new Date().toISOString(),
             isGuest: false,
-            avatar: this.currentState.playerName.charAt(0).toUpperCase(),
+            avatar: name.charAt(0).toUpperCase(),
             stats: {
                 gamesPlayed: 0,
                 gamesWon: 0,
@@ -353,25 +392,34 @@ class GameManager {
         }
         
         this.currentState.user = user;
+        this.currentState.playerName = name;
         localStorage.setItem('last_user_id', user.id);
-        this.showMainMenu();
+        localStorage.setItem('quiz_player_name', name);
         
+        this.showMainMenu();
         showNotification('Аккаунт создан!', 'Ваша статистика будет сохранена', '#00ff9d');
+        
+        // Сбрасываем форму
         this.resetAuthForm();
     }
     
     // Вход в аккаунт
     loginAccount() {
-        if (!this.savePlayerName()) {
-            showNotification('Ошибка', 'Введите имя игрока', '#ff5555');
-            return;
-        }
+        console.log('Вход в аккаунт...');
         
         const passwordInput = document.getElementById('passwordInput');
         if (!passwordInput) return;
         
+        const nameInput = document.getElementById('playerNameInput');
+        if (!nameInput) return;
+        
         const password = passwordInput.value;
-        const name = this.currentState.playerName;
+        const name = nameInput.value.trim();
+        
+        if (!name) {
+            showNotification('Ошибка', 'Введите имя игрока', '#ff5555');
+            return;
+        }
         
         if (!password || password.length < 6) {
             showNotification('Ошибка', 'Пароль должен содержать минимум 6 символов', '#ff5555');
@@ -388,7 +436,10 @@ class GameManager {
         
         if (user) {
             this.currentState.user = user;
+            this.currentState.playerName = user.username;
             localStorage.setItem('last_user_id', user.id);
+            localStorage.setItem('quiz_player_name', user.username);
+            
             this.showMainMenu();
             showNotification('Успешный вход!', `Добро пожаловать, ${name}!`, '#00ff9d');
         } else {
@@ -452,8 +503,16 @@ class GameManager {
         const emailInput = document.getElementById('emailInput');
         const strengthDiv = document.getElementById('passwordStrength');
         
-        if (createBtn) createBtn.innerHTML = '<i class="fas fa-user-plus"></i> СОЗДАТЬ АККАУНТ';
-        if (loginBtn) loginBtn.style.display = 'none';
+        if (createBtn) {
+            createBtn.innerHTML = '<i class="fas fa-user-plus"></i> СОЗДАТЬ АККАУНТ';
+            createBtn.classList.remove('btn-primary');
+            createBtn.classList.add('btn-secondary');
+        }
+        if (loginBtn) {
+            loginBtn.style.display = 'none';
+            loginBtn.classList.remove('btn-primary');
+            loginBtn.classList.add('btn-secondary');
+        }
         if (emailGroup) emailGroup.style.display = 'none';
         if (passwordInput) passwordInput.value = '';
         if (emailInput) emailInput.value = '';
@@ -462,8 +521,10 @@ class GameManager {
     
     // Показать главное меню
     showMainMenu() {
+        console.log('Показать главное меню');
         this.showScreen('menu');
         this.updateProfileInfo();
+        
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.style.display = 'block';
     }
@@ -495,15 +556,26 @@ class GameManager {
         
         // Статистика
         const stats = user.stats || {};
-        document.getElementById('gamesPlayed').textContent = stats.gamesPlayed || 0;
-        document.getElementById('gamesWon').textContent = stats.gamesWon || 0;
-        document.getElementById('totalScore').textContent = stats.totalScore || 0;
-        document.getElementById('statGamesPlayed').textContent = stats.gamesPlayed || 0;
-        document.getElementById('statGamesWon').textContent = stats.gamesWon || 0;
-        document.getElementById('statTotalScore').textContent = stats.totalScore || 0;
-        document.getElementById('statAverageScore').textContent = stats.averageScore || 0;
-        document.getElementById('statBestScore').textContent = stats.bestScore || 0;
-        document.getElementById('statWinRate').textContent = (stats.winRate || 0) + '%';
+        
+        // Обновляем все элементы статистики
+        const elements = {
+            'gamesPlayed': stats.gamesPlayed || 0,
+            'gamesWon': stats.gamesWon || 0,
+            'totalScore': stats.totalScore || 0,
+            'statGamesPlayed': stats.gamesPlayed || 0,
+            'statGamesWon': stats.gamesWon || 0,
+            'statTotalScore': stats.totalScore || 0,
+            'statAverageScore': stats.averageScore || 0,
+            'statBestScore': stats.bestScore || 0,
+            'statWinRate': (stats.winRate || 0) + '%'
+        };
+        
+        for (const [id, value] of Object.entries(elements)) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
     }
     
     // Выход из системы
@@ -512,8 +584,10 @@ class GameManager {
             this.currentState.user = null;
             localStorage.removeItem('last_user_id');
             this.showScreen('auth');
+            
             const sidebar = document.getElementById('sidebar');
             if (sidebar) sidebar.style.display = 'none';
+            
             this.resetAuthForm();
             showNotification('Выход', 'Вы вышли из системы', '#00f3ff');
         }
@@ -531,6 +605,8 @@ class GameManager {
     
     // Создание комнаты
     createRoom() {
+        console.log('Создание комнаты...');
+        
         const roomCode = this.generateRoomCode();
         const hostName = this.currentState.playerName;
         const hostId = this.currentState.user ? this.currentState.user.id : null;
@@ -570,6 +646,11 @@ class GameManager {
             this.updateRecentRooms();
             
             showNotification('Комната создана!', `Код: ${roomCode}`, '#00ff9d');
+            
+            // Инициализируем realtime manager если нужно
+            if (window.realtimeManager) {
+                window.realtimeManager.startRoomUpdates(roomCode);
+            }
         } else {
             showNotification('Ошибка', 'Не удалось создать комнату', '#ff5555');
         }
@@ -577,6 +658,8 @@ class GameManager {
     
     // Присоединение к комнате
     joinRoom() {
+        console.log('Присоединение к комнате...');
+        
         const joinCodeInput = document.getElementById('joinCodeInput');
         if (!joinCodeInput) return;
         
@@ -630,6 +713,11 @@ class GameManager {
             if (Database) Database.addRecentRoom(roomCode);
             
             showNotification('Успех!', `Вы присоединились к комнате ${roomCode}`, '#00ff9d');
+            
+            // Инициализируем realtime manager если нужно
+            if (window.realtimeManager) {
+                window.realtimeManager.startRoomUpdates(roomCode);
+            }
         } else {
             showNotification('Ошибка', 'Не удалось присоединиться', '#ff5555');
         }
@@ -641,6 +729,7 @@ class GameManager {
         if (roomCodeElement) {
             roomCodeElement.textContent = roomCode;
         }
+        
         this.showScreen('code');
         this.updatePlayerList();
         
@@ -658,6 +747,9 @@ class GameManager {
         this.playerListInterval = setInterval(() => {
             this.updatePlayerList();
         }, 3000);
+        
+        // Обновляем сразу
+        this.updatePlayerList();
     }
     
     // Обновление списка игроков
@@ -686,8 +778,11 @@ class GameManager {
                     const playerEl = document.createElement('div');
                     playerEl.className = 'player-item';
                     playerEl.innerHTML = `
-                        <div class="player-avatar">${player.avatar}</div>
-                        <div class="player-name">${player.name} ${player.isHost ? '👑' : ''}</div>
+                        <div class="player-avatar">${player.avatar || player.name.charAt(0).toUpperCase()}</div>
+                        <div class="player-name">
+                            ${player.name} ${player.isHost ? '👑' : ''}
+                            ${player.id === this.currentState.user?.id ? ' (Вы)' : ''}
+                        </div>
                     `;
                     playersList.appendChild(playerEl);
                 });
@@ -727,6 +822,11 @@ class GameManager {
         if (this.playerListInterval) {
             clearInterval(this.playerListInterval);
             this.playerListInterval = null;
+        }
+        
+        // Останавливаем realtime обновления
+        if (window.realtimeManager) {
+            window.realtimeManager.stopUpdates();
         }
         
         this.currentState.currentRoom = null;
@@ -806,27 +906,26 @@ class GameManager {
             `;
             
             roomsList.appendChild(roomItem);
-        });
-        
-        // Добавляем обработчики для кнопок
-        document.querySelectorAll('.join-room-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const roomCode = e.target.closest('button').dataset.room;
-                this.joinExistingRoom(roomCode);
-            });
+            
+            // Добавляем обработчик для этой кнопки
+            const joinBtn = roomItem.querySelector('.join-room-btn');
+            if (joinBtn) {
+                joinBtn.addEventListener('click', () => {
+                    this.joinExistingRoom(room.code);
+                });
+            }
         });
     }
     
     // Присоединение к существующей комнате
     joinExistingRoom(roomCode) {
-        this.joinRoomWithCode(roomCode);
-    }
-    
-    joinRoomWithCode(roomCode) {
+        // Устанавливаем код в поле ввода
         const joinCodeInput = document.getElementById('joinCodeInput');
         if (joinCodeInput) {
             joinCodeInput.value = roomCode;
         }
+        
+        // Вызываем joinRoom
         this.joinRoom();
     }
     
@@ -873,14 +972,14 @@ class GameManager {
             `;
             
             roomsList.appendChild(roomItem);
-        });
-        
-        // Добавляем обработчики для кнопок входа
-        document.querySelectorAll('.join-room-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const roomCode = e.target.closest('button').dataset.room;
-                this.joinExistingRoom(roomCode);
-            });
+            
+            // Добавляем обработчик для этой кнопки
+            const joinBtn = roomItem.querySelector('.join-room-btn');
+            if (joinBtn) {
+                joinBtn.addEventListener('click', () => {
+                    this.joinExistingRoom(room.code);
+                });
+            }
         });
     }
     
@@ -904,11 +1003,14 @@ class GameManager {
     
     // Сменить имя пользователя
     changeUsername() {
-        document.getElementById('usernameModal').style.display = 'flex';
-        const newUsernameInput = document.getElementById('newUsername');
-        if (newUsernameInput) {
-            newUsernameInput.value = this.currentState.playerName;
-            newUsernameInput.focus();
+        const modal = document.getElementById('usernameModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const newUsernameInput = document.getElementById('newUsername');
+            if (newUsernameInput) {
+                newUsernameInput.value = this.currentState.playerName;
+                newUsernameInput.focus();
+            }
         }
     }
     
@@ -945,8 +1047,11 @@ class GameManager {
     
     // Сменить аватар
     changeAvatar() {
-        document.getElementById('avatarModal').style.display = 'flex';
-        this.loadAvatarOptions();
+        const modal = document.getElementById('avatarModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            this.loadAvatarOptions();
+        }
     }
     
     // Загрузить варианты аватаров
@@ -1002,12 +1107,17 @@ class GameManager {
     
     // Скрыть модальное окно
     hideModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
     
     // Показать экран
     showScreen(screen) {
-        // Скрываем все контейнеры
+        console.log('Показать экран:', screen);
+        
+        // Список всех контейнеров
         const containers = [
             'authContainer', 
             'roomContainer', 
@@ -1017,9 +1127,12 @@ class GameManager {
             'settingsContainer'
         ];
         
+        // Скрываем все контейнеры
         containers.forEach(id => {
             const element = document.getElementById(id);
-            if (element) element.style.display = 'none';
+            if (element) {
+                element.style.display = 'none';
+            }
         });
         
         // Останавливаем интервалы если не на экране комнат
@@ -1074,9 +1187,9 @@ class GameManager {
     }
 }
 
-// Инициализация при полной загрузке
-window.addEventListener('load', () => {
-    console.log('Загрузка завершена, инициализация GameManager...');
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM загружен, создаем GameManager...');
     
     // Скрываем загрузчик
     const loader = document.getElementById('loader');
@@ -1084,9 +1197,46 @@ window.addEventListener('load', () => {
         loader.style.display = 'none';
     }
     
-    // Создаем экземпляр GameManager
-    game = new GameManager();
-    window.game = game;
+    // Показываем основной контейнер
+    const mainContainer = document.getElementById('mainContainer');
+    if (mainContainer) {
+        mainContainer.style.display = 'block';
+    }
     
-    console.log('Neon Quiz Battle готов!');
+    // Создаем экземпляр GameManager
+    try {
+        game = new GameManager();
+        window.game = game;
+        console.log('GameManager создан успешно');
+    } catch (error) {
+        console.error('Ошибка создания GameManager:', error);
+        
+        // Показываем экран авторизации в любом случае
+        const authContainer = document.getElementById('authContainer');
+        if (authContainer) {
+            authContainer.style.display = 'block';
+        }
+        
+        // Простые обработчики для кнопок
+        const quickStartBtn = document.getElementById('quickStartBtn');
+        if (quickStartBtn) {
+            quickStartBtn.addEventListener('click', () => {
+                alert('Игра временно недоступна. Попробуйте перезагрузить страницу.');
+            });
+        }
+    }
+});
+
+// Обработка ошибок загрузки
+window.addEventListener('error', (e) => {
+    console.error('Ошибка загрузки:', e);
+    const loader = document.getElementById('loader');
+    if (loader) {
+        loader.style.display = 'none';
+    }
+    
+    const authContainer = document.getElementById('authContainer');
+    if (authContainer) {
+        authContainer.style.display = 'block';
+    }
 });
