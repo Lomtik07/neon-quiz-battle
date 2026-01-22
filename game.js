@@ -1,4 +1,4 @@
-// game.js - Основная логика игры (исправленная версия)
+// game.js - Основная логика игры
 
 // Глобальные переменные
 let game = null;
@@ -38,32 +38,43 @@ class GameManager {
         this.playerListInterval = null;
         this.roomsUpdateInterval = null;
         
-        // Загружаем пользователя
-        this.loadSavedUser();
-        
-        // Инициализируем обработчики сразу
+        // Инициализация
         this.init();
     }
     
     // Основная инициализация
     init() {
-        console.log('Начало инициализации...');
+        // Загружаем пользователя
+        this.loadSavedUser();
         
-        // Сначала загружаем предпочтения
+        // Инициализируем после загрузки DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initialize());
+        } else {
+            setTimeout(() => this.initialize(), 100);
+        }
+    }
+    
+    // Инициализация после DOM
+    initialize() {
+        console.log('Инициализация интерфейса...');
+        
+        // Настраиваем интерфейс
         this.loadUserPreferences();
-        
-        // Затем инициализируем обработчики
         this.initializeEventListeners();
+        this.updateNavBar();
         
-        // Показываем экран в зависимости от состояния
-        setTimeout(() => {
-            if (this.currentState.user && !this.currentState.user.isGuest) {
-                this.showMainMenu();
-            } else {
-                this.showScreen('auth');
-            }
-            console.log('GameManager инициализирован');
-        }, 100);
+        // Показываем нужный экран
+        if (this.currentState.user) {
+            this.showScreen('menu');
+        } else {
+            this.showScreen('auth');
+        }
+        
+        // Скрываем загрузчик
+        this.hideLoader();
+        
+        console.log('GameManager инициализирован');
     }
     
     // Загрузка сохраненного пользователя
@@ -90,13 +101,28 @@ class GameManager {
     
     // Загрузка предпочтений пользователя
     loadUserPreferences() {
-        try {
-            const nameInput = document.getElementById('playerNameInput');
-            if (nameInput && this.currentState.playerName) {
-                nameInput.value = this.currentState.playerName;
+        const nameInput = document.getElementById('playerNameInput');
+        if (nameInput && this.currentState.playerName) {
+            nameInput.value = this.currentState.playerName;
+        }
+    }
+    
+    // Обновление навигационной панели
+    updateNavBar() {
+        const navbar = document.getElementById('navbar');
+        const navUser = document.getElementById('navUser');
+        const navUserName = document.getElementById('navUserName');
+        const navUserAvatar = document.getElementById('navUserAvatar');
+        
+        if (this.currentState.user) {
+            if (navbar) navbar.style.display = 'flex';
+            if (navUserName) navUserName.textContent = this.currentState.user.username;
+            if (navUserAvatar) {
+                navUserAvatar.textContent = this.currentState.user.avatar || 
+                                          this.currentState.user.username.charAt(0).toUpperCase();
             }
-        } catch (error) {
-            console.error('Ошибка загрузки предпочтений:', error);
+        } else {
+            if (navbar) navbar.style.display = 'none';
         }
     }
     
@@ -104,31 +130,13 @@ class GameManager {
     initializeEventListeners() {
         console.log('Инициализация обработчиков...');
         
-        // Убедимся что DOM полностью загружен
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setupEventListeners());
-        } else {
-            this.setupEventListeners();
-        }
-    }
-    
-    // Настройка обработчиков событий
-    setupEventListeners() {
-        console.log('Настройка обработчиков событий...');
-        
-        // Быстрый старт
+        // Авторизация
         this.setupButton('quickStartBtn', () => this.quickStart());
-        
-        // Создание аккаунта
         this.setupButton('createAccountBtn', () => this.toggleAccountMode());
-        
-        // Вход в аккаунт
         this.setupButton('loginAccountBtn', () => this.loginAccount());
-        
-        // Переключение видимости пароля
         this.setupButton('togglePassword', () => this.togglePasswordVisibility());
         
-        // Проверка сложности пароля
+        // Пароль
         const passwordInput = document.getElementById('passwordInput');
         if (passwordInput) {
             passwordInput.addEventListener('input', (e) => {
@@ -136,138 +144,45 @@ class GameManager {
             });
         }
         
-        // Создание комнаты
+        // Комнаты
         this.setupButton('createRoomBtn', () => this.createRoom());
-        
-        // Присоединение к комнате
         this.setupButton('joinRoomBtn', () => this.joinRoom());
-        
-        // Начать игру
         this.setupButton('startGameBtn', () => this.startGame());
-        
-        // Покинуть комнату
         this.setupButton('leaveRoomBtn', () => this.leaveRoom());
-        
-        // Копировать код
         this.setupButton('copyCodeBtn', () => this.copyRoomCode());
-        
-        // Поделиться кодом
         this.setupButton('shareCodeBtn', () => this.shareRoomCode());
         
         // Enter для присоединения
         const joinCodeInput = document.getElementById('joinCodeInput');
         if (joinCodeInput) {
             joinCodeInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.joinRoom();
-                }
+                if (e.key === 'Enter') this.joinRoom();
             });
         }
         
-        // Кнопки боковой панели
-        this.setupButton('profileBtn', () => this.showScreen('profile'));
-        this.setupButton('settingsBtn', () => this.showScreen('settings'));
-        this.setupButton('logoutBtn', () => this.logout());
-        
-        // Мои опросы
-        this.setupButton('myQuizzesBtn', () => {
-            if (window.quizManager) {
-                window.quizManager.showMyQuizzes();
-            } else {
-                showNotification('Информация', 'Функция будет доступна после полной загрузки', '#00f3ff');
-            }
-        });
-        
-        // Настройка обработчиков меню
-        this.setupMenuHandlers();
+        // Настройки игры
+        const gameType = document.getElementById('gameType');
+        if (gameType) {
+            gameType.addEventListener('change', (e) => {
+                this.updateGameType(e.target.value);
+            });
+        }
         
         console.log('Обработчики настроены');
     }
     
-    // Универсальная функция настройки кнопок
+    // Настройка кнопки
     setupButton(buttonId, handler) {
         const button = document.getElementById(buttonId);
         if (button) {
-            // Удаляем старые обработчики
-            const newButton = button.cloneNode(true);
-            button.parentNode.replaceChild(newButton, button);
-            
-            // Добавляем новый обработчик
-            newButton.addEventListener('click', handler);
-            return newButton;
-        }
-        return null;
-    }
-    
-    // Настройка обработчиков меню
-    setupMenuHandlers() {
-        // Обработчики для карточек меню
-        document.addEventListener('click', (e) => {
-            const menuCard = e.target.closest('.menu-card');
-            if (menuCard) {
-                e.preventDefault();
-                const title = menuCard.querySelector('.menu-title')?.textContent.trim();
-                
-                switch(title) {
-                    case 'ИГРАТЬ':
-                        this.showScreen('room');
-                        break;
-                    case 'ПРОФИЛЬ':
-                        this.showScreen('profile');
-                        break;
-                    case 'СОЗДАТЬ ВИКТОРИНУ':
-                        if (window.quizManager) {
-                            window.quizManager.showCreateQuiz();
-                        } else {
-                            showNotification('Информация', 'Создание викторин скоро будет доступно', '#00f3ff');
-                        }
-                        break;
-                    case 'ТАБЛИЦА ЛИДЕРОВ':
-                        this.showLeaderboard();
-                        break;
-                    case 'МОИ ВИКТОРИНЫ':
-                        if (window.quizManager) {
-                            window.quizManager.showMyQuizzes();
-                        } else {
-                            showNotification('Информация', 'Мои викторины скоро будут доступны', '#00f3ff');
-                        }
-                        break;
-                    case 'НАСТРОЙКИ':
-                        this.showScreen('settings');
-                        break;
-                }
-            }
-        });
-        
-        // Кнопка назад в профиле
-        const backBtn = document.querySelector('.btn[onclick*="game.showScreen"]');
-        if (backBtn) {
-            backBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showScreen('menu');
-            });
-        }
-        
-        // Кнопка сохранения настроек
-        const saveSettingsBtn = document.querySelector('.btn[onclick*="game.saveSettings"]');
-        if (saveSettingsBtn) {
-            saveSettingsBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.saveSettings();
-            });
+            button.addEventListener('click', handler);
         }
     }
     
-    // Быстрый старт (гостевой режим)
+    // Быстрый старт
     quickStart() {
-        console.log('Быстрый старт...');
-        
-        // Получаем имя игрока
         const nameInput = document.getElementById('playerNameInput');
-        if (!nameInput) {
-            showNotification('Ошибка', 'Поле имени не найдено', '#ff5555');
-            return;
-        }
+        if (!nameInput) return;
         
         const name = nameInput.value.trim();
         if (!name) {
@@ -283,25 +198,18 @@ class GameManager {
             username: name,
             isGuest: true,
             avatar: name.charAt(0).toUpperCase(),
-            stats: {
-                gamesPlayed: 0,
-                gamesWon: 0,
-                totalScore: 0,
-                averageScore: 0,
-                bestScore: 0,
-                winRate: 0
-            }
+            stats: { gamesPlayed: 0, gamesWon: 0, totalScore: 0, averageScore: 0, bestScore: 0, winRate: 0 }
         };
         
         this.currentState.user = guestUser;
-        this.showMainMenu();
+        this.updateNavBar();
+        this.showScreen('menu');
         
         showNotification('Гостевой режим', 'Для сохранения статистики создайте аккаунт', '#ffaa00');
     }
     
     // Переключение режима аккаунта
     toggleAccountMode() {
-        console.log('Переключение режима аккаунта...');
         const createBtn = document.getElementById('createAccountBtn');
         const loginBtn = document.getElementById('loginAccountBtn');
         const emailGroup = document.getElementById('emailGroup');
@@ -309,7 +217,6 @@ class GameManager {
         if (!createBtn) return;
         
         if (createBtn.textContent.includes('СОЗДАТЬ')) {
-            // Переключаемся на режим создания аккаунта
             createBtn.innerHTML = '<i class="fas fa-check"></i> ПОДТВЕРДИТЬ';
             createBtn.classList.remove('btn-secondary');
             createBtn.classList.add('btn-primary');
@@ -321,30 +228,22 @@ class GameManager {
             }
             if (emailGroup) emailGroup.style.display = 'block';
         } else {
-            // Создаем аккаунт
             this.createAccount();
         }
     }
     
     // Создание аккаунта
     createAccount() {
-        console.log('Создание аккаунта...');
-        
-        // Получаем данные из формы
         const nameInput = document.getElementById('playerNameInput');
         const passwordInput = document.getElementById('passwordInput');
         const emailInput = document.getElementById('emailInput');
         
-        if (!nameInput || !passwordInput) {
-            showNotification('Ошибка', 'Форма не найдена', '#ff5555');
-            return;
-        }
+        if (!nameInput || !passwordInput) return;
         
         const name = nameInput.value.trim();
         const password = passwordInput.value;
         const email = emailInput ? emailInput.value.trim() : '';
         
-        // Валидация
         if (!name) {
             showNotification('Ошибка', 'Введите имя игрока', '#ff5555');
             return;
@@ -355,7 +254,7 @@ class GameManager {
             return;
         }
         
-        // Проверяем, существует ли пользователь
+        // Проверяем существование пользователя
         let existingUser = null;
         if (Database && Database.data && Database.data.users) {
             existingUser = Database.data.users.find(u => u.username === name);
@@ -368,21 +267,14 @@ class GameManager {
         
         // Создаем пользователя
         const user = {
-            id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            id: 'user_' + Date.now(),
             username: name,
             password: password,
             email: email || null,
             createdAt: new Date().toISOString(),
             isGuest: false,
             avatar: name.charAt(0).toUpperCase(),
-            stats: {
-                gamesPlayed: 0,
-                gamesWon: 0,
-                totalScore: 0,
-                averageScore: 0,
-                bestScore: 0,
-                winRate: 0
-            }
+            stats: { gamesPlayed: 0, gamesWon: 0, totalScore: 0, averageScore: 0, bestScore: 0, winRate: 0 }
         };
         
         if (Database) {
@@ -396,22 +288,19 @@ class GameManager {
         localStorage.setItem('last_user_id', user.id);
         localStorage.setItem('quiz_player_name', name);
         
-        this.showMainMenu();
+        this.updateNavBar();
+        this.showScreen('menu');
         showNotification('Аккаунт создан!', 'Ваша статистика будет сохранена', '#00ff9d');
         
-        // Сбрасываем форму
         this.resetAuthForm();
     }
     
     // Вход в аккаунт
     loginAccount() {
-        console.log('Вход в аккаунт...');
-        
         const passwordInput = document.getElementById('passwordInput');
-        if (!passwordInput) return;
-        
         const nameInput = document.getElementById('playerNameInput');
-        if (!nameInput) return;
+        
+        if (!passwordInput || !nameInput) return;
         
         const password = passwordInput.value;
         const name = nameInput.value.trim();
@@ -426,12 +315,10 @@ class GameManager {
             return;
         }
         
-        // Ищем пользователя в базе данных
+        // Ищем пользователя
         let user = null;
         if (Database && Database.data && Database.data.users) {
-            user = Database.data.users.find(u => 
-                u.username === name && u.password === password
-            );
+            user = Database.data.users.find(u => u.username === name && u.password === password);
         }
         
         if (user) {
@@ -440,173 +327,39 @@ class GameManager {
             localStorage.setItem('last_user_id', user.id);
             localStorage.setItem('quiz_player_name', user.username);
             
-            this.showMainMenu();
+            this.updateNavBar();
+            this.showScreen('menu');
             showNotification('Успешный вход!', `Добро пожаловать, ${name}!`, '#00ff9d');
         } else {
             showNotification('Ошибка', 'Неверное имя пользователя или пароль', '#ff5555');
         }
     }
     
-    // Переключение видимости пароля
-    togglePasswordVisibility() {
-        const passwordInput = document.getElementById('passwordInput');
-        const toggleBtn = document.getElementById('togglePassword');
+    // Обновление типа игры
+    updateGameType(type) {
+        const contentSelectLabel = document.getElementById('contentSelectLabel');
+        const contentSelect = document.getElementById('contentSelect');
         
-        if (!passwordInput || !toggleBtn) return;
-        
-        const toggleIcon = toggleBtn.querySelector('i');
-        
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            if (toggleIcon) toggleIcon.className = 'fas fa-eye-slash';
-        } else {
-            passwordInput.type = 'password';
-            if (toggleIcon) toggleIcon.className = 'fas fa-eye';
-        }
-    }
-    
-    // Проверка сложности пароля
-    checkPasswordStrength(password) {
-        const strengthDiv = document.getElementById('passwordStrength');
-        if (!strengthDiv) return;
-        
-        if (!password) {
-            strengthDiv.className = 'password-strength';
-            return;
-        }
-        
-        let strength = 0;
-        if (password.length >= 6) strength++;
-        if (password.length >= 8) strength++;
-        if (/[A-Z]/.test(password)) strength++;
-        if (/[0-9]/.test(password)) strength++;
-        if (/[^A-Za-z0-9]/.test(password)) strength++;
-        
-        if (strength <= 2) {
-            strengthDiv.textContent = 'Слабый пароль';
-            strengthDiv.className = 'password-strength weak';
-        } else if (strength <= 4) {
-            strengthDiv.textContent = 'Средний пароль';
-            strengthDiv.className = 'password-strength medium';
-        } else {
-            strengthDiv.textContent = 'Сильный пароль';
-            strengthDiv.className = 'password-strength strong';
-        }
-    }
-    
-    // Сброс формы авторизации
-    resetAuthForm() {
-        const createBtn = document.getElementById('createAccountBtn');
-        const loginBtn = document.getElementById('loginAccountBtn');
-        const emailGroup = document.getElementById('emailGroup');
-        const passwordInput = document.getElementById('passwordInput');
-        const emailInput = document.getElementById('emailInput');
-        const strengthDiv = document.getElementById('passwordStrength');
-        
-        if (createBtn) {
-            createBtn.innerHTML = '<i class="fas fa-user-plus"></i> СОЗДАТЬ АККАУНТ';
-            createBtn.classList.remove('btn-primary');
-            createBtn.classList.add('btn-secondary');
-        }
-        if (loginBtn) {
-            loginBtn.style.display = 'none';
-            loginBtn.classList.remove('btn-primary');
-            loginBtn.classList.add('btn-secondary');
-        }
-        if (emailGroup) emailGroup.style.display = 'none';
-        if (passwordInput) passwordInput.value = '';
-        if (emailInput) emailInput.value = '';
-        if (strengthDiv) strengthDiv.className = 'password-strength';
-    }
-    
-    // Показать главное меню
-    showMainMenu() {
-        console.log('Показать главное меню');
-        this.showScreen('menu');
-        this.updateProfileInfo();
-        
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.style.display = 'block';
-    }
-    
-    // Обновление информации профиля
-    updateProfileInfo() {
-        if (!this.currentState.user) return;
-        
-        const user = this.currentState.user;
-        
-        // Аватар
-        const avatar = document.getElementById('userAvatar');
-        if (avatar) {
-            avatar.textContent = user.avatar || user.username.charAt(0).toUpperCase();
-        }
-        
-        // Имя
-        const displayName = document.getElementById('userDisplayName');
-        if (displayName) {
-            displayName.textContent = user.username;
-        }
-        
-        // Email
-        const emailEl = document.getElementById('userEmail');
-        if (emailEl) {
-            emailEl.textContent = user.email || (user.isGuest ? 'Гостевой аккаунт' : '');
-            emailEl.style.color = user.isGuest ? '#ffaa00' : '#aaa';
-        }
-        
-        // Статистика
-        const stats = user.stats || {};
-        
-        // Обновляем все элементы статистики
-        const elements = {
-            'gamesPlayed': stats.gamesPlayed || 0,
-            'gamesWon': stats.gamesWon || 0,
-            'totalScore': stats.totalScore || 0,
-            'statGamesPlayed': stats.gamesPlayed || 0,
-            'statGamesWon': stats.gamesWon || 0,
-            'statTotalScore': stats.totalScore || 0,
-            'statAverageScore': stats.averageScore || 0,
-            'statBestScore': stats.bestScore || 0,
-            'statWinRate': (stats.winRate || 0) + '%'
-        };
-        
-        for (const [id, value] of Object.entries(elements)) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
+        if (contentSelectLabel && contentSelect) {
+            if (type === 'quiz') {
+                contentSelectLabel.innerHTML = '<i class="fas fa-list"></i> Выберите викторину:';
+                contentSelect.innerHTML = `
+                    <option value="random">Случайная викторина</option>
+                    <option value="my">Мои викторины</option>
+                    <option value="public">Публичные викторины</option>
+                `;
+            } else {
+                contentSelectLabel.innerHTML = '<i class="fas fa-poll"></i> Выберите опрос:';
+                contentSelect.innerHTML = `
+                    <option value="my">Мои опросы</option>
+                    <option value="public">Публичные опросы</option>
+                `;
             }
         }
     }
     
-    // Выход из системы
-    logout() {
-        if (confirm('Вы уверены, что хотите выйти?')) {
-            this.currentState.user = null;
-            localStorage.removeItem('last_user_id');
-            this.showScreen('auth');
-            
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar) sidebar.style.display = 'none';
-            
-            this.resetAuthForm();
-            showNotification('Выход', 'Вы вышли из системы', '#00f3ff');
-        }
-    }
-    
-    // Генератор кода комнаты
-    generateRoomCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    }
-    
     // Создание комнаты
     createRoom() {
-        console.log('Создание комнаты...');
-        
         const roomCode = this.generateRoomCode();
         const hostName = this.currentState.playerName;
         const hostId = this.currentState.user ? this.currentState.user.id : null;
@@ -614,27 +367,6 @@ class GameManager {
         let room = null;
         if (Database) {
             room = Database.createRoom(roomCode, hostName, hostId);
-        } else {
-            // Fallback
-            room = {
-                code: roomCode,
-                hostId: hostId,
-                hostName: hostName,
-                players: [{
-                    id: hostId || 'guest_' + Date.now(),
-                    name: hostName,
-                    avatar: hostName.charAt(0).toUpperCase(),
-                    isHost: true,
-                    score: 0,
-                    ready: false
-                }],
-                maxPlayers: 8,
-                gameState: 'waiting',
-                theme: 'general',
-                currentQuestion: 0,
-                createdAt: Date.now(),
-                lastActivity: Date.now()
-            };
         }
         
         if (room) {
@@ -646,11 +378,6 @@ class GameManager {
             this.updateRecentRooms();
             
             showNotification('Комната создана!', `Код: ${roomCode}`, '#00ff9d');
-            
-            // Инициализируем realtime manager если нужно
-            if (window.realtimeManager) {
-                window.realtimeManager.startRoomUpdates(roomCode);
-            }
         } else {
             showNotification('Ошибка', 'Не удалось создать комнату', '#ff5555');
         }
@@ -658,8 +385,6 @@ class GameManager {
     
     // Присоединение к комнате
     joinRoom() {
-        console.log('Присоединение к комнате...');
-        
         const joinCodeInput = document.getElementById('joinCodeInput');
         if (!joinCodeInput) return;
         
@@ -690,18 +415,6 @@ class GameManager {
         let player = null;
         if (Database) {
             player = Database.addPlayerToRoom(roomCode, playerName, playerId);
-        } else {
-            // Fallback
-            player = {
-                id: playerId || 'guest_' + Date.now(),
-                name: playerName,
-                avatar: playerName.charAt(0).toUpperCase(),
-                isHost: false,
-                score: 0,
-                ready: false
-            };
-            if (!room.players) room.players = [];
-            room.players.push(player);
         }
         
         if (player) {
@@ -713,11 +426,6 @@ class GameManager {
             if (Database) Database.addRecentRoom(roomCode);
             
             showNotification('Успех!', `Вы присоединились к комнате ${roomCode}`, '#00ff9d');
-            
-            // Инициализируем realtime manager если нужно
-            if (window.realtimeManager) {
-                window.realtimeManager.startRoomUpdates(roomCode);
-            }
         } else {
             showNotification('Ошибка', 'Не удалось присоединиться', '#ff5555');
         }
@@ -733,13 +441,13 @@ class GameManager {
         this.showScreen('code');
         this.updatePlayerList();
         
-        // Показываем кнопку "Начать игру" только для хоста
+        // Кнопка начала игры
         const startGameBtn = document.getElementById('startGameBtn');
         if (startGameBtn) {
             startGameBtn.style.display = this.currentState.isHost ? 'block' : 'none';
         }
         
-        // Обновляем список игроков
+        // Обновление списка игроков
         if (this.playerListInterval) {
             clearInterval(this.playerListInterval);
         }
@@ -748,7 +456,6 @@ class GameManager {
             this.updatePlayerList();
         }, 3000);
         
-        // Обновляем сразу
         this.updatePlayerList();
     }
     
@@ -759,8 +466,6 @@ class GameManager {
         let room = null;
         if (Database) {
             room = Database.findRoomByCode(this.currentState.roomCode);
-        } else {
-            room = this.currentState.currentRoom;
         }
         
         if (room) {
@@ -770,7 +475,7 @@ class GameManager {
                 playerCountElement.textContent = `Игроков: ${playerCount}/8`;
             }
             
-            // Обновляем список игроков
+            // Список игроков
             const playersList = document.getElementById('playersList');
             if (playersList) {
                 playersList.innerHTML = '';
@@ -788,7 +493,7 @@ class GameManager {
                 });
             }
             
-            // Если хост и есть минимум 2 игрока, показываем кнопку "Начать игру"
+            // Кнопка начала игры
             const startGameBtn = document.getElementById('startGameBtn');
             if (this.currentState.isHost && playerCount >= 2 && startGameBtn) {
                 startGameBtn.style.display = 'block';
@@ -802,7 +507,6 @@ class GameManager {
         
         showNotification('Игра начинается!', 'Подготовьтесь к первому вопросу', '#00ff9d');
         
-        // Временная заглушка
         setTimeout(() => {
             showNotification('В разработке', 'Игровой процесс в разработке', '#ffaa00');
         }, 2000);
@@ -812,21 +516,13 @@ class GameManager {
     leaveRoom() {
         if (this.currentState.roomCode && this.currentState.user) {
             if (Database) {
-                Database.removePlayerFromRoom(
-                    this.currentState.roomCode, 
-                    this.currentState.user.id
-                );
+                Database.removePlayerFromRoom(this.currentState.roomCode, this.currentState.user.id);
             }
         }
         
         if (this.playerListInterval) {
             clearInterval(this.playerListInterval);
             this.playerListInterval = null;
-        }
-        
-        // Останавливаем realtime обновления
-        if (window.realtimeManager) {
-            window.realtimeManager.stopUpdates();
         }
         
         this.currentState.currentRoom = null;
@@ -907,7 +603,6 @@ class GameManager {
             
             roomsList.appendChild(roomItem);
             
-            // Добавляем обработчик для этой кнопки
             const joinBtn = roomItem.querySelector('.join-room-btn');
             if (joinBtn) {
                 joinBtn.addEventListener('click', () => {
@@ -919,13 +614,10 @@ class GameManager {
     
     // Присоединение к существующей комнате
     joinExistingRoom(roomCode) {
-        // Устанавливаем код в поле ввода
         const joinCodeInput = document.getElementById('joinCodeInput');
         if (joinCodeInput) {
             joinCodeInput.value = roomCode;
         }
-        
-        // Вызываем joinRoom
         this.joinRoom();
     }
     
@@ -944,11 +636,7 @@ class GameManager {
         }
         
         if (availableRooms.length === 0) {
-            roomsList.innerHTML = `
-                <div class="room-item">
-                    <span class="room-info">Нет доступных комнат. Создайте свою!</span>
-                </div>
-            `;
+            roomsList.innerHTML = '<div class="room-item"><span class="room-info">Нет доступных комнат</span></div>';
             return;
         }
         
@@ -973,7 +661,6 @@ class GameManager {
             
             roomsList.appendChild(roomItem);
             
-            // Добавляем обработчик для этой кнопки
             const joinBtn = roomItem.querySelector('.join-room-btn');
             if (joinBtn) {
                 joinBtn.addEventListener('click', () => {
@@ -983,9 +670,58 @@ class GameManager {
         });
     }
     
-    // Показать таблицу лидеров
-    showLeaderboard() {
-        showNotification('В разработке', 'Таблица лидеров скоро будет доступна!', '#ffaa00');
+    // Показать профиль
+    showProfile() {
+        this.showScreen('profile');
+        this.updateProfileInfo();
+    }
+    
+    // Обновление информации профиля
+    updateProfileInfo() {
+        if (!this.currentState.user) return;
+        
+        const user = this.currentState.user;
+        
+        // Аватар
+        const avatar = document.getElementById('userAvatar');
+        if (avatar) {
+            avatar.textContent = user.avatar || user.username.charAt(0).toUpperCase();
+        }
+        
+        // Имя
+        const displayName = document.getElementById('userDisplayName');
+        if (displayName) {
+            displayName.textContent = user.username;
+        }
+        
+        // Email
+        const emailEl = document.getElementById('userEmail');
+        if (emailEl) {
+            emailEl.textContent = user.email || (user.isGuest ? 'Гостевой аккаунт' : '');
+            emailEl.style.color = user.isGuest ? '#ffaa00' : '#aaa';
+        }
+        
+        // Статистика
+        const stats = user.stats || {};
+        
+        const elements = {
+            'gamesPlayed': stats.gamesPlayed || 0,
+            'gamesWon': stats.gamesWon || 0,
+            'totalScore': stats.totalScore || 0,
+            'statGamesPlayed': stats.gamesPlayed || 0,
+            'statGamesWon': stats.gamesWon || 0,
+            'statTotalScore': stats.totalScore || 0,
+            'statAverageScore': stats.averageScore || 0,
+            'statBestScore': stats.bestScore || 0,
+            'statWinRate': (stats.winRate || 0) + '%'
+        };
+        
+        for (const [id, value] of Object.entries(elements)) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
     }
     
     // Показать настройки
@@ -1001,20 +737,28 @@ class GameManager {
         }, 1000);
     }
     
-    // Сменить имя пользователя
-    changeUsername() {
-        const modal = document.getElementById('usernameModal');
-        if (modal) {
-            modal.style.display = 'flex';
-            const newUsernameInput = document.getElementById('newUsername');
-            if (newUsernameInput) {
-                newUsernameInput.value = this.currentState.playerName;
-                newUsernameInput.focus();
-            }
+    // Выход из системы
+    logout() {
+        if (confirm('Вы уверены, что хотите выйти?')) {
+            this.currentState.user = null;
+            localStorage.removeItem('last_user_id');
+            this.updateNavBar();
+            this.showScreen('auth');
+            this.resetAuthForm();
+            showNotification('Выход', 'Вы вышли из системы', '#00f3ff');
         }
     }
     
-    // Сохранить имя пользователя
+    // Смена имени
+    changeUsername() {
+        document.getElementById('usernameModal').style.display = 'flex';
+        const newUsernameInput = document.getElementById('newUsername');
+        if (newUsernameInput) {
+            newUsernameInput.value = this.currentState.playerName;
+            newUsernameInput.focus();
+        }
+    }
+    
     saveUsername() {
         const newUsernameInput = document.getElementById('newUsername');
         if (!newUsernameInput) return;
@@ -1028,33 +772,25 @@ class GameManager {
         this.currentState.playerName = newUsername;
         this.currentState.user.username = newUsername;
         
-        // Сохраняем в localStorage
         localStorage.setItem('quiz_player_name', newUsername);
         
-        // Обновляем в базе данных
         if (Database && this.currentState.user.id) {
             Database.updateUser(this.currentState.user.id, { username: newUsername });
         }
         
-        // Обновляем UI
         this.updateProfileInfo();
-        
-        // Скрываем модальное окно
+        this.updateNavBar();
         this.hideModal('usernameModal');
         
         showNotification('Успех', 'Имя изменено', '#00ff9d');
     }
     
-    // Сменить аватар
+    // Смена аватара
     changeAvatar() {
-        const modal = document.getElementById('avatarModal');
-        if (modal) {
-            modal.style.display = 'flex';
-            this.loadAvatarOptions();
-        }
+        document.getElementById('avatarModal').style.display = 'flex';
+        this.loadAvatarOptions();
     }
     
-    // Загрузить варианты аватаров
     loadAvatarOptions() {
         const avatarGrid = document.getElementById('avatarGrid');
         if (!avatarGrid) return;
@@ -1079,22 +815,20 @@ class GameManager {
         });
     }
     
-    // Выбрать аватар
     selectAvatar(avatar) {
         this.currentState.user.avatar = avatar;
         
-        // Сохраняем в базе данных
         if (Database && this.currentState.user.id) {
             Database.updateUser(this.currentState.user.id, { avatar: avatar });
         }
         
-        // Обновляем UI
         const userAvatar = document.getElementById('userAvatar');
         if (userAvatar) {
             userAvatar.textContent = avatar;
         }
         
-        // Показываем выбранный аватар
+        this.updateNavBar();
+        
         document.querySelectorAll('.avatar-option').forEach(option => {
             option.classList.remove('selected');
             if (option.dataset.avatar === avatar) {
@@ -1117,51 +851,32 @@ class GameManager {
     showScreen(screen) {
         console.log('Показать экран:', screen);
         
-        // Список всех контейнеров
-        const containers = [
-            'authContainer', 
-            'roomContainer', 
-            'codeContainer',
-            'profileContainer',
-            'menuContainer',
-            'settingsContainer'
-        ];
-        
-        // Скрываем все контейнеры
-        containers.forEach(id => {
+        // Скрываем все экраны
+        const screens = ['authContainer', 'menuContainer', 'roomContainer', 'codeContainer', 'profileContainer', 'settingsContainer'];
+        screens.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
+                element.classList.remove('active');
                 element.style.display = 'none';
             }
         });
         
-        // Останавливаем интервалы если не на экране комнат
-        if (screen !== 'room' && screen !== 'code') {
-            if (this.playerListInterval) {
-                clearInterval(this.playerListInterval);
-                this.playerListInterval = null;
-            }
-            if (this.roomsUpdateInterval) {
-                clearInterval(this.roomsUpdateInterval);
-                this.roomsUpdateInterval = null;
-            }
-        }
-        
-        // Показываем нужный контейнер
-        let containerId = '';
+        // Показываем нужный экран
+        let screenId = '';
         switch(screen) {
-            case 'auth': containerId = 'authContainer'; break;
-            case 'room': containerId = 'roomContainer'; break;
-            case 'code': containerId = 'codeContainer'; break;
-            case 'profile': containerId = 'profileContainer'; break;
-            case 'menu': containerId = 'menuContainer'; break;
-            case 'settings': containerId = 'settingsContainer'; break;
-            default: containerId = 'authContainer';
+            case 'auth': screenId = 'authContainer'; break;
+            case 'menu': screenId = 'menuContainer'; break;
+            case 'room': screenId = 'roomContainer'; break;
+            case 'code': screenId = 'codeContainer'; break;
+            case 'profile': screenId = 'profileContainer'; break;
+            case 'settings': screenId = 'settingsContainer'; break;
+            default: screenId = 'authContainer';
         }
         
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.style.display = 'block';
+        const screenElement = document.getElementById(screenId);
+        if (screenElement) {
+            screenElement.style.display = 'block';
+            screenElement.classList.add('active');
         }
         
         this.currentState.gameScreen = screen;
@@ -1171,7 +886,6 @@ class GameManager {
             this.updateAvailableRooms();
             this.updateRecentRooms();
             
-            // Запускаем обновление комнат
             if (this.roomsUpdateInterval) {
                 clearInterval(this.roomsUpdateInterval);
             }
@@ -1181,62 +895,122 @@ class GameManager {
             }, 5000);
         } else if (screen === 'profile') {
             this.updateProfileInfo();
-        } else if (screen === 'menu') {
-            this.updateProfileInfo();
+        }
+    }
+    
+    // Генератор кода комнаты
+    generateRoomCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+    
+    // Переключение видимости пароля
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('passwordInput');
+        const toggleBtn = document.getElementById('togglePassword');
+        
+        if (!passwordInput || !toggleBtn) return;
+        
+        const toggleIcon = toggleBtn.querySelector('i');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            if (toggleIcon) toggleIcon.className = 'fas fa-eye-slash';
+        } else {
+            passwordInput.type = 'password';
+            if (toggleIcon) toggleIcon.className = 'fas fa-eye';
+        }
+    }
+    
+    // Проверка сложности пароля
+    checkPasswordStrength(password) {
+        const strengthDiv = document.getElementById('passwordStrength');
+        if (!strengthDiv) return;
+        
+        if (!password) {
+            strengthDiv.className = 'password-strength';
+            return;
+        }
+        
+        let strength = 0;
+        if (password.length >= 6) strength++;
+        if (password.length >= 8) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^A-Za-z0-9]/.test(password)) strength++;
+        
+        if (strength <= 2) {
+            strengthDiv.textContent = 'Слабый пароль';
+            strengthDiv.className = 'password-strength weak';
+        } else if (strength <= 4) {
+            strengthDiv.textContent = 'Средний пароль';
+            strengthDiv.className = 'password-strength medium';
+        } else {
+            strengthDiv.textContent = 'Сильный пароль';
+            strengthDiv.className = 'password-strength strong';
+        }
+    }
+    
+    // Сброс формы авторизации
+    resetAuthForm() {
+        const createBtn = document.getElementById('createAccountBtn');
+        const loginBtn = document.getElementById('loginAccountBtn');
+        const emailGroup = document.getElementById('emailGroup');
+        const passwordInput = document.getElementById('passwordInput');
+        const emailInput = document.getElementById('emailInput');
+        const strengthDiv = document.getElementById('passwordStrength');
+        
+        if (createBtn) {
+            createBtn.innerHTML = '<i class="fas fa-user-plus"></i> СОЗДАТЬ АККАУНТ';
+            createBtn.classList.remove('btn-primary');
+            createBtn.classList.add('btn-secondary');
+        }
+        if (loginBtn) {
+            loginBtn.style.display = 'none';
+            loginBtn.classList.remove('btn-primary');
+            loginBtn.classList.add('btn-secondary');
+        }
+        if (emailGroup) emailGroup.style.display = 'none';
+        if (passwordInput) passwordInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (strengthDiv) strengthDiv.className = 'password-strength';
+    }
+    
+    // Скрыть загрузчик
+    hideLoader() {
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.style.display = 'none';
         }
     }
 }
 
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM загружен, создаем GameManager...');
+// Инициализация при загрузке
+window.addEventListener('load', () => {
+    console.log('Загрузка завершена...');
     
-    // Скрываем загрузчик
-    const loader = document.getElementById('loader');
-    if (loader) {
-        loader.style.display = 'none';
-    }
-    
-    // Показываем основной контейнер
-    const mainContainer = document.getElementById('mainContainer');
-    if (mainContainer) {
-        mainContainer.style.display = 'block';
-    }
-    
-    // Создаем экземпляр GameManager
+    // Создаем GameManager
     try {
         game = new GameManager();
         window.game = game;
-        console.log('GameManager создан успешно');
+        console.log('GameManager создан');
     } catch (error) {
         console.error('Ошибка создания GameManager:', error);
         
-        // Показываем экран авторизации в любом случае
+        // Показываем экран авторизации
         const authContainer = document.getElementById('authContainer');
         if (authContainer) {
             authContainer.style.display = 'block';
+            authContainer.classList.add('active');
         }
         
-        // Простые обработчики для кнопок
-        const quickStartBtn = document.getElementById('quickStartBtn');
-        if (quickStartBtn) {
-            quickStartBtn.addEventListener('click', () => {
-                alert('Игра временно недоступна. Попробуйте перезагрузить страницу.');
-            });
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.style.display = 'none';
         }
-    }
-});
-
-// Обработка ошибок загрузки
-window.addEventListener('error', (e) => {
-    console.error('Ошибка загрузки:', e);
-    const loader = document.getElementById('loader');
-    if (loader) {
-        loader.style.display = 'none';
-    }
-    
-    const authContainer = document.getElementById('authContainer');
-    if (authContainer) {
-        authContainer.style.display = 'block';
     }
 });
