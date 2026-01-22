@@ -1,61 +1,67 @@
-// realtime.js - Реальное обновление комнат через WebSocket или polling
+// realtime.js - Простая система обновления комнат
 
 class RealtimeManager {
     constructor(gameManager) {
         this.gameManager = gameManager;
         this.updateInterval = null;
-        this.roomUpdateCallbacks = [];
-        this.playerUpdateCallbacks = [];
-        this.gameUpdateCallbacks = [];
-        
-        this.pollingRate = 2000; // Обновление каждые 2 секунды
+        this.updateRate = 3000; // 3 секунды
+        console.log('RealtimeManager инициализирован');
     }
     
     // Начать обновление комнаты
     startRoomUpdates(roomCode) {
         this.stopUpdates();
         
-        this.updateInterval = setInterval(() => {
-            this.updateRoomData(roomCode);
-        }, this.pollingRate);
+        console.log(`Начато обновление комнаты: ${roomCode}`);
         
-        console.log(`Начато обновление комнаты ${roomCode}`);
-    }
-    
-    // Остановить обновления
-    stopUpdates() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-            console.log('Обновления остановлены');
-        }
+        this.updateInterval = setInterval(() => {
+            this.updateRoom(roomCode);
+        }, this.updateRate);
+        
+        // Сразу обновляем
+        this.updateRoom(roomCode);
     }
     
     // Обновить данные комнаты
-    async updateRoomData(roomCode) {
-        try {
-            const room = Database.findRoomByCode(roomCode);
-            if (!room) {
-                this.stopUpdates();
-                showNotification('Ошибка', 'Комната не найдена', '#ff5555');
-                this.gameManager.leaveRoom();
-                return;
-            }
-            
-            // Обновляем список игроков
-            this.updatePlayersList(room);
-            
-            // Обновляем состояние игры
-            this.updateGameState(room);
-            
-            // Обновляем UI
+    updateRoom(roomCode) {
+        if (!Database) return;
+        
+        const room = Database.findRoomByCode(roomCode);
+        if (!room) {
+            console.log('Комната не найдена, останавливаем обновления');
+            this.stopUpdates();
+            return;
+        }
+        
+        // Обновляем UI если мы на экране комнаты
+        if (this.gameManager.currentState.gameScreen === 'code') {
             this.updateRoomUI(room);
-            
-            // Вызываем колбэки
-            this.roomUpdateCallbacks.forEach(callback => callback(room));
-            
-        } catch (error) {
-            console.error('Ошибка обновления комнаты:', error);
+        }
+        
+        // Если игра началась, обновляем игровой экран
+        if (room.gameState === 'playing' && this.gameManager.currentState.gameScreen === 'game') {
+            this.updateGameUI(room);
+        }
+    }
+    
+    // Обновить UI комнаты
+    updateRoomUI(room) {
+        // Обновляем счетчик игроков
+        const playerCount = document.getElementById('playerCount');
+        if (playerCount) {
+            playerCount.textContent = `Игроков: ${room.players.length}/${room.maxPlayers}`;
+        }
+        
+        // Обновляем список игроков
+        this.updatePlayersList(room);
+        
+        // Обновляем кнопку начала игры
+        const startGameBtn = document.getElementById('startGameBtn');
+        if (startGameBtn) {
+            const canStart = this.gameManager.currentState.isHost && 
+                           room.players.length >= 2 && 
+                           room.gameState === 'waiting';
+            startGameBtn.style.display = canStart ? 'block' : 'none';
         }
     }
     
@@ -69,78 +75,43 @@ class RealtimeManager {
         let playersHTML = '';
         room.players.forEach(player => {
             const isCurrentUser = currentUser && player.id === currentUser.id;
-            const playerClass = isCurrentUser ? 'player-item current-user' : 'player-item';
-            
             playersHTML += `
-                <div class="${playerClass}">
-                    <div class="player-avatar">${player.avatar}</div>
+                <div class="player-item ${isCurrentUser ? 'current-user' : ''}">
+                    <div class="player-avatar">${player.avatar || player.name.charAt(0).toUpperCase()}</div>
                     <div class="player-name">
                         ${player.name} ${player.isHost ? '👑' : ''}
+                        ${isCurrentUser ? '<span style="color: #00f3ff; font-size: 0.8em;">(Вы)</span>' : ''}
                     </div>
-                    ${room.gameState === 'playing' ? 
-                        `<div class="player-status">
-                            ${player.answered ? '✓' : '...'}
-                        </div>` : ''
-                    }
                 </div>
             `;
         });
         
         playersList.innerHTML = playersHTML;
-        
-        // Обновляем счетчик игроков
-        const playerCount = document.getElementById('playerCount');
-        if (playerCount) {
-            playerCount.textContent = `Игроков: ${room.players.length}/${room.maxPlayers}`;
-        }
-        
-        // Обновляем кнопку начала игры
-        const startGameBtn = document.getElementById('startGameBtn');
-        if (startGameBtn) {
-            const isHost = this.gameManager.currentState.isHost;
-            const hasEnoughPlayers = room.players.length >= 2;
-            
-            startGameBtn.style.display = (isHost && hasEnoughPlayers && room.gameState === 'waiting') ? 'block' : 'none';
-        }
     }
     
-    // Обновить состояние игры
-    updateGameState(room) {
-        if (room.gameState === 'playing') {
-            this.updateGameTimer(room);
-            this.updateGamePlayers(room);
-        }
-    }
-    
-    // Обновить таймер игры
-    updateGameTimer(room) {
-        if (!room.questionStartTime || room.timeLimit === 0) return;
-        
-        const now = Date.now();
-        const elapsed = Math.floor((now - room.questionStartTime) / 1000);
-        const timeLeft = Math.max(0, room.timeLimit - elapsed);
-        
-        const gameTimer = document.getElementById('gameTimer');
-        if (gameTimer) {
-            gameTimer.textContent = timeLeft;
+    // Обновить игровой UI
+    updateGameUI(room) {
+        // Обновляем таймер если есть
+        if (room.questionStartTime && room.timeLimit > 0) {
+            const now = Date.now();
+            const elapsed = Math.floor((now - room.questionStartTime) / 1000);
+            const timeLeft = Math.max(0, room.timeLimit - elapsed);
             
-            // Меняем цвет при малом времени
-            if (timeLeft <= 5) {
-                gameTimer.style.color = '#ff5555';
-                gameTimer.style.textShadow = '0 0 20px #ff5555';
-            } else if (timeLeft <= 10) {
-                gameTimer.style.color = '#ffaa00';
-                gameTimer.style.textShadow = '0 0 20px #ffaa00';
-            } else {
-                gameTimer.style.color = '#ff00ff';
-                gameTimer.style.textShadow = '0 0 20px #ff00ff';
-            }
-            
-            // Автоматический переход при истечении времени
-            if (timeLeft === 0 && this.gameManager.currentState.isHost) {
-                this.gameManager.nextQuestion();
+            const gameTimer = document.getElementById('gameTimer');
+            if (gameTimer) {
+                gameTimer.textContent = timeLeft;
+                
+                // Меняем цвет при малом времени
+                if (timeLeft <= 5) {
+                    gameTimer.style.color = '#ff5555';
+                } else if (timeLeft <= 10) {
+                    gameTimer.style.color = '#ffaa00';
+                }
             }
         }
+        
+        // Обновляем статус игроков
+        this.updateGamePlayers(room);
     }
     
     // Обновить игроков в игре
@@ -152,16 +123,13 @@ class RealtimeManager {
         room.players.forEach(player => {
             playersHTML += `
                 <div class="game-player">
-                    <div class="game-player-avatar">${player.avatar}</div>
+                    <div class="game-player-avatar">${player.avatar || player.name.charAt(0).toUpperCase()}</div>
                     <div class="game-player-info">
                         <div class="game-player-name">${player.name}</div>
-                        <div class="game-player-score">
-                            <i class="fas fa-star"></i> ${player.score}
+                        <div class="game-player-score">${player.score} очков</div>
+                        <div class="game-player-status ${player.answered ? 'answered' : 'waiting'}">
+                            ${player.answered ? '✓ Ответил' : '⌛ Ожидание'}
                         </div>
-                        ${player.answered ? 
-                            '<div class="game-player-status answered">✓ Отвечен</div>' :
-                            '<div class="game-player-status waiting">⌛ Ожидание</div>'
-                        }
                     </div>
                 </div>
             `;
@@ -170,97 +138,84 @@ class RealtimeManager {
         gamePlayers.innerHTML = playersHTML;
     }
     
-    // Обновить UI комнаты
-    updateRoomUI(room) {
-        // Обновляем тему викторины
-        const quizTheme = document.getElementById('quizTheme');
-        if (quizTheme) {
-            quizTheme.value = room.theme || 'general';
-        }
-        
-        // Обновляем лимит времени
-        const questionTime = document.getElementById('questionTime');
-        if (questionTime) {
-            questionTime.value = room.timeLimit || 20;
-        }
-        
-        // Обновляем последнюю активность
-        this.updateLastActivity(room.lastActivity);
-    }
-    
-    // Обновить время последней активности
-    updateLastActivity(timestamp) {
-        const now = Date.now();
-        const diff = Math.floor((now - timestamp) / 1000);
-        
-        // Можно добавить отображение времени последней активности
-        if (diff > 300) { // 5 минут
-            console.log('Комната неактивна долгое время');
+    // Остановить обновления
+    stopUpdates() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+            console.log('Обновления остановлены');
         }
     }
     
-    // Добавить колбэк для обновления комнаты
-    onRoomUpdate(callback) {
-        this.roomUpdateCallbacks.push(callback);
-    }
-    
-    // Добавить колбэк для обновления игроков
-    onPlayerUpdate(callback) {
-        this.playerUpdateCallbacks.push(callback);
-    }
-    
-    // Добавить колбэк для обновления игры
-    onGameUpdate(callback) {
-        this.gameUpdateCallbacks.push(callback);
-    }
-    
-    // Уведомить об изменении комнаты
-    notifyRoomChange(roomCode) {
-        const room = Database.findRoomByCode(roomCode);
-        if (room) {
-            this.roomUpdateCallbacks.forEach(callback => callback(room));
+    // Эмуляция уведомлений от других игроков
+    simulatePlayerJoin(playerName) {
+        if (this.gameManager.currentState.gameScreen === 'code') {
+            showNotification('Новый игрок', `${playerName} присоединился к комнате`, '#00ff9d');
         }
     }
     
-    // Уведомить об изменении игрока
-    notifyPlayerChange(roomCode, playerId) {
-        const room = Database.findRoomByCode(roomCode);
-        if (room) {
-            const player = room.players.find(p => p.id === playerId);
-            if (player) {
-                this.playerUpdateCallbacks.forEach(callback => callback(room, player));
-            }
+    // Эмуляция начала игры
+    simulateGameStart() {
+        if (this.gameManager.currentState.gameScreen === 'code') {
+            showNotification('Игра начинается!', 'Приготовьтесь к первому вопросу', '#00ff9d');
         }
-    }
-    
-    // Уведомить об изменении игры
-    notifyGameChange(roomCode) {
-        const room = Database.findRoomByCode(roomCode);
-        if (room) {
-            this.gameUpdateCallbacks.forEach(callback => callback(room));
-        }
-    }
-    
-    // Эмуляция WebSocket соединения
-    simulateWebSocket() {
-        // В реальном приложении здесь было бы WebSocket соединение
-        console.log('WebSocket эмуляция запущена');
-        
-        // Симуляция случайных обновлений
-        setInterval(() => {
-            const rooms = Database.data.rooms;
-            if (rooms.length > 0) {
-                const randomRoom = rooms[Math.floor(Math.random() * rooms.length)];
-                this.notifyRoomChange(randomRoom.code);
-            }
-        }, 5000);
     }
 }
 
-// Создаем глобальный экземпляр
+// Глобальный экземпляр
 let realtimeManager = null;
 
-// Инициализация при загрузке
+// Инициализация по требованию
+function initRealtimeManager() {
+    if (!realtimeManager && window.game) {
+        realtimeManager = new RealtimeManager(window.game);
+        window.realtimeManager = realtimeManager;
+        console.log('RealtimeManager инициализирован');
+        
+        // Автоматически запускаем обновление при входе в комнату
+        if (window.game.currentState.roomCode) {
+            setTimeout(() => {
+                realtimeManager.startRoomUpdates(window.game.currentState.roomCode);
+            }, 1000);
+        }
+    }
+    return realtimeManager;
+}
+
+// Автоматическая инициализация при создании/входе в комнату
+const originalCreateRoom = window.game?.createRoom;
+if (originalCreateRoom) {
+    window.game.createRoom = function(...args) {
+        const result = originalCreateRoom.apply(this, args);
+        setTimeout(() => {
+            initRealtimeManager();
+            if (realtimeManager) {
+                realtimeManager.startRoomUpdates(this.currentState.roomCode);
+            }
+        }, 500);
+        return result;
+    };
+}
+
+const originalJoinRoom = window.game?.joinRoom;
+if (originalJoinRoom) {
+    window.game.joinRoom = function(...args) {
+        const result = originalJoinRoom.apply(this, args);
+        setTimeout(() => {
+            initRealtimeManager();
+            if (realtimeManager) {
+                realtimeManager.startRoomUpdates(this.currentState.roomCode);
+            }
+        }, 500);
+        return result;
+    };
+}
+
+// Инициализация при загрузке если уже есть комната
 document.addEventListener('DOMContentLoaded', () => {
-    // Будет инициализирован в game.js
+    if (window.game && window.game.currentState.roomCode) {
+        setTimeout(() => {
+            initRealtimeManager();
+        }, 2000);
+    }
 });
