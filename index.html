@@ -106,6 +106,14 @@
                         <i class="fas fa-sign-in-alt"></i> ВОЙТИ
                     </button>
                 </div>
+                
+                <div class="room-action-card">
+                    <h3><i class="fas fa-edit"></i> МОИ ОПРОСЫ</h3>
+                    <p>Созданные вами викторины</p>
+                    <button id="myQuizzesBtn" class="btn btn-secondary">
+                        <i class="fas fa-list"></i> ПРОСМОТРЕТЬ
+                    </button>
+                </div>
             </div>
             
             <div class="recent-rooms" id="recentRooms">
@@ -118,18 +126,52 @@
         <div class="code-container" id="codeContainer" style="display: none;">
             <h2><i class="fas fa-users"></i> ВАША КОМНАТА</h2>
             
-            <div class="room-code-display">
-                <div class="code-label">КОД КОМНАТЫ:</div>
-                <div class="code" id="roomCode">XXXXXX</div>
-                <div class="code-hint">Поделитесь этим кодом с друзьями</div>
+            <div class="room-info-section">
+                <div class="room-code-display">
+                    <div class="code-label">КОД КОМНАТЫ:</div>
+                    <div class="code" id="roomCode">XXXXXX</div>
+                    <div class="code-hint">Поделитесь этим кодом с друзьями</div>
+                    
+                    <div class="code-actions">
+                        <button id="copyCodeBtn" class="btn btn-secondary">
+                            <i class="fas fa-copy"></i> КОПИРОВАТЬ
+                        </button>
+                        <button id="shareCodeBtn" class="btn btn-primary">
+                            <i class="fas fa-share-alt"></i> ПОДЕЛИТЬСЯ
+                        </button>
+                    </div>
+                </div>
                 
-                <div class="code-actions">
-                    <button id="copyCodeBtn" class="btn btn-secondary">
-                        <i class="fas fa-copy"></i> КОПИРОВАТЬ
-                    </button>
-                    <button id="shareCodeBtn" class="btn btn-primary">
-                        <i class="fas fa-share-alt"></i> ПОДЕЛИТЬСЯ
-                    </button>
+                <div class="room-settings" id="roomSettings">
+                    <h3><i class="fas fa-cog"></i> НАСТРОЙКИ КОМНАТЫ</h3>
+                    <div class="setting-group">
+                        <label>Тема викторины:</label>
+                        <select id="quizTheme" class="input-field">
+                            <option value="general">Общая</option>
+                            <option value="science">Наука</option>
+                            <option value="history">История</option>
+                            <option value="geography">География</option>
+                            <option value="entertainment">Развлечения</option>
+                            <option value="sports">Спорт</option>
+                            <option value="custom">Моя викторина</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label>Время на вопрос (секунд):</label>
+                        <select id="questionTime" class="input-field">
+                            <option value="0">Без ограничения</option>
+                            <option value="10">10 сек</option>
+                            <option value="15">15 сек</option>
+                            <option value="20" selected>20 сек</option>
+                            <option value="30">30 сек</option>
+                            <option value="45">45 сек</option>
+                            <option value="60">60 сек</option>
+                        </select>
+                    </div>
+                    <div class="setting-group" id="customQuizGroup" style="display: none;">
+                        <label>Выберите свою викторину:</label>
+                        <select id="customQuizSelect" class="input-field"></select>
+                    </div>
                 </div>
             </div>
             
@@ -137,15 +179,17 @@
                 <div class="loader"></div>
                 <p>Ожидание игроков...</p>
                 <div class="player-count" id="playerCount">Игроков: 1/8</div>
+                <div class="players-list" id="playersList"></div>
             </div>
             
-            <button id="startGameBtn" class="btn btn-success" style="display: none;">
-                <i class="fas fa-play"></i> НАЧАТЬ ИГРУ
-            </button>
-            
-            <button id="leaveRoomBtn" class="btn btn-danger">
-                <i class="fas fa-sign-out-alt"></i> ПОКИНУТЬ КОМНАТУ
-            </button>
+            <div class="room-actions-bottom">
+                <button id="startGameBtn" class="btn btn-success" style="display: none;">
+                    <i class="fas fa-play"></i> НАЧАТЬ ИГРУ
+                </button>
+                <button id="leaveRoomBtn" class="btn btn-danger">
+                    <i class="fas fa-sign-out-alt"></i> ПОКИНУТЬ КОМНАТУ
+                </button>
+            </div>
         </div>
 
         <!-- Подвал -->
@@ -156,73 +200,10 @@
                 <div class="social-links">
                     <a href="#" class="social-link"><i class="fab fa-github"></i></a>
                     <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                    <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
+                    <a href="https://discord.gg" target="_blank" class="social-link"><i class="fab fa-discord"></i></a>
                 </div>
             </div>
         </footer>
-    </div>
-
-    <!-- Экран профиля -->
-    <div class="container" id="profileContainer" style="display: none;">
-        <div class="profile-header">
-            <div class="profile-avatar" id="userAvatar">U</div>
-            <div class="profile-info">
-                <div class="profile-name" id="userDisplayName">Пользователь</div>
-                <div class="profile-email" id="userEmail">guest@example.com</div>
-            </div>
-            <button class="btn btn-secondary" onclick="game.showScreen('menu')">
-                <i class="fas fa-arrow-left"></i> Назад
-            </button>
-        </div>
-
-        <div class="profile-stats">
-            <div class="stat-card">
-                <div class="stat-value" id="gamesPlayed">0</div>
-                <div class="stat-label">Игр сыграно</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="gamesWon">0</div>
-                <div class="stat-label">Побед</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="totalScore">0</div>
-                <div class="stat-label">Всего очков</div>
-            </div>
-        </div>
-
-        <div class="game-menu">
-            <a href="#" class="menu-card" onclick="game.showScreen('room')">
-                <div class="menu-icon">
-                    <i class="fas fa-play-circle"></i>
-                </div>
-                <div class="menu-title">Быстрая игра</div>
-                <div class="menu-description">Начните новую игру или присоединитесь к существующей</div>
-            </a>
-
-            <a href="#" class="menu-card" onclick="game.createQuiz()">
-                <div class="menu-icon">
-                    <i class="fas fa-plus-circle"></i>
-                </div>
-                <div class="menu-title">Создать опрос</div>
-                <div class="menu-description">Создайте свой собственный опрос для игры</div>
-            </a>
-
-            <a href="#" class="menu-card" onclick="game.showStats()">
-                <div class="menu-icon">
-                    <i class="fas fa-chart-bar"></i>
-                </div>
-                <div class="menu-title">Статистика</div>
-                <div class="menu-description">Просмотр вашей игровой статистики</div>
-            </a>
-
-            <a href="#" class="menu-card" onclick="game.showFriends()">
-                <div class="menu-icon">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="menu-title">Друзья</div>
-                <div class="menu-description">Пригласите друзей поиграть вместе</div>
-            </a>
-        </div>
     </div>
 
     <!-- Главное меню -->
@@ -249,11 +230,11 @@
                 <div class="menu-description">Просмотр статистики и настройки аккаунта</div>
             </a>
 
-            <a href="#" class="menu-card" onclick="game.createQuiz()">
+            <a href="#" class="menu-card" onclick="quizManager.showCreateQuiz()">
                 <div class="menu-icon">
                     <i class="fas fa-edit"></i>
                 </div>
-                <div class="menu-title">СОЗДАТЬ ОПРОС</div>
+                <div class="menu-title">СОЗДАТЬ ВИКТОРИНУ</div>
                 <div class="menu-description">Создайте свои вопросы для игры</div>
             </a>
 
@@ -265,12 +246,12 @@
                 <div class="menu-description">Рейтинг лучших игроков</div>
             </a>
 
-            <a href="#" class="menu-card" onclick="game.showFriends()">
+            <a href="#" class="menu-card" onclick="quizManager.showMyQuizzes()">
                 <div class="menu-icon">
-                    <i class="fas fa-users"></i>
+                    <i class="fas fa-list"></i>
                 </div>
-                <div class="menu-title">ДРУЗЬЯ</div>
-                <div class="menu-description">Пригласите друзей поиграть вместе</div>
+                <div class="menu-title">МОИ ВИКТОРИНЫ</div>
+                <div class="menu-description">Просмотр созданных викторин</div>
             </a>
 
             <a href="#" class="menu-card" onclick="game.showSettings()">
@@ -283,24 +264,215 @@
         </div>
     </div>
 
+    <!-- Экран профиля -->
+    <div class="container" id="profileContainer" style="display: none;">
+        <div class="profile-header">
+            <div class="profile-avatar-container">
+                <div class="profile-avatar" id="userAvatar">U</div>
+                <button class="btn btn-small" onclick="game.changeAvatar()">
+                    <i class="fas fa-camera"></i> Сменить
+                </button>
+            </div>
+            <div class="profile-info">
+                <div class="profile-name">
+                    <span id="userDisplayName">Пользователь</span>
+                    <button class="btn btn-small" onclick="game.changeUsername()">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+                <div class="profile-email" id="userEmail">guest@example.com</div>
+                <div class="profile-stats-summary">
+                    <span><i class="fas fa-gamepad"></i> Игр: <span id="gamesPlayed">0</span></span>
+                    <span><i class="fas fa-trophy"></i> Побед: <span id="gamesWon">0</span></span>
+                    <span><i class="fas fa-star"></i> Очков: <span id="totalScore">0</span></span>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="game.showScreen('menu')">
+                <i class="fas fa-arrow-left"></i> Назад
+            </button>
+        </div>
+
+        <div class="profile-stats-detailed">
+            <div class="stat-card">
+                <div class="stat-value" id="statGamesPlayed">0</div>
+                <div class="stat-label">Игр сыграно</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statGamesWon">0</div>
+                <div class="stat-label">Побед</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statTotalScore">0</div>
+                <div class="stat-label">Всего очков</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statAverageScore">0</div>
+                <div class="stat-label">Средний счёт</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statBestScore">0</div>
+                <div class="stat-label">Лучший счёт</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statWinRate">0%</div>
+                <div class="stat-label">Процент побед</div>
+            </div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="btn btn-primary" onclick="game.showScreen('room')">
+                <i class="fas fa-play"></i> ИГРАТЬ
+            </button>
+            <button class="btn btn-secondary" onclick="quizManager.showCreateQuiz()">
+                <i class="fas fa-plus"></i> СОЗДАТЬ ВИКТОРИНУ
+            </button>
+        </div>
+    </div>
+
     <!-- Экран настроек -->
     <div class="container" id="settingsContainer" style="display: none;">
         <h2><i class="fas fa-cog"></i> НАСТРОЙКИ</h2>
+        
         <div class="settings-group">
-            <h3>Звук</h3>
+            <h3><i class="fas fa-volume-up"></i> Звук</h3>
             <label class="switch">
                 <input type="checkbox" id="soundToggle" checked>
                 <span class="slider"></span>
-                <span class="switch-label">Включить звук</span>
+                <span class="switch-label">Включить звуковые эффекты</span>
+            </label>
+            
+            <label class="switch">
+                <input type="checkbox" id="musicToggle" checked>
+                <span class="slider"></span>
+                <span class="switch-label">Фоновая музыка</span>
             </label>
         </div>
-        <button class="btn btn-primary" onclick="game.showScreen('menu')">
-            <i class="fas fa-save"></i> СОХРАНИТЬ
-        </button>
+        
+        <div class="settings-group">
+            <h3><i class="fas fa-palette"></i> Внешний вид</h3>
+            <div class="theme-selector">
+                <button class="theme-btn active" data-theme="dark">
+                    <i class="fas fa-moon"></i> Тёмная
+                </button>
+                <button class="theme-btn" data-theme="light">
+                    <i class="fas fa-sun"></i> Светлая
+                </button>
+                <button class="theme-btn" data-theme="neon">
+                    <i class="fas fa-bolt"></i> Неоновая
+                </button>
+            </div>
+        </div>
+        
+        <div class="settings-group">
+            <h3><i class="fas fa-globe"></i> Язык</h3>
+            <select id="languageSelect" class="input-field">
+                <option value="ru" selected>Русский</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+        
+        <div class="settings-actions">
+            <button class="btn btn-primary" onclick="game.saveSettings()">
+                <i class="fas fa-save"></i> СОХРАНИТЬ НАСТРОЙКИ
+            </button>
+            <button class="btn btn-secondary" onclick="game.showScreen('menu')">
+                <i class="fas fa-times"></i> ОТМЕНА
+            </button>
+        </div>
+    </div>
+
+    <!-- Модальное окно для смены имени -->
+    <div class="modal" id="usernameModal" style="display: none;">
+        <div class="modal-content">
+            <h3><i class="fas fa-edit"></i> Смена имени</h3>
+            <input type="text" id="newUsername" class="input-field" placeholder="Новое имя" maxlength="20">
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="game.saveUsername()">
+                    <i class="fas fa-check"></i> СОХРАНИТЬ
+                </button>
+                <button class="btn btn-secondary" onclick="game.hideModal('usernameModal')">
+                    <i class="fas fa-times"></i> ОТМЕНА
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для смены аватара -->
+    <div class="modal" id="avatarModal" style="display: none;">
+        <div class="modal-content">
+            <h3><i class="fas fa-camera"></i> Выбор аватара</h3>
+            <div class="avatar-grid" id="avatarGrid">
+                <!-- Аватары будут загружены динамически -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="game.hideModal('avatarModal')">
+                    <i class="fas fa-times"></i> ОТМЕНА
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Экран создания викторины -->
+    <div class="container" id="quizCreatorContainer" style="display: none;">
+        <div class="quiz-creator-header">
+            <h2><i class="fas fa-edit"></i> СОЗДАНИЕ ВИКТОРИНЫ</h2>
+            <button class="btn btn-secondary" onclick="quizManager.hideQuizCreator()">
+                <i class="fas fa-arrow-left"></i> Назад
+            </button>
+        </div>
+        
+        <div class="quiz-creator">
+            <!-- Будет заполнено динамически -->
+        </div>
+    </div>
+
+    <!-- Экран моих викторин -->
+    <div class="container" id="myQuizzesContainer" style="display: none;">
+        <div class="my-quizzes-header">
+            <h2><i class="fas fa-list"></i> МОИ ВИКТОРИНЫ</h2>
+            <button class="btn btn-secondary" onclick="quizManager.hideMyQuizzes()">
+                <i class="fas fa-arrow-left"></i> Назад
+            </button>
+        </div>
+        
+        <div class="my-quizzes-list" id="myQuizzesList">
+            <!-- Будет заполнено динамически -->
+        </div>
+    </div>
+
+    <!-- Игровой экран -->
+    <div class="container" id="gameContainer" style="display: none;">
+        <div class="game-header">
+            <div class="game-info">
+                <div class="game-timer" id="gameTimer">20</div>
+                <div class="game-question-counter">
+                    Вопрос <span id="currentQuestion">1</span> из <span id="totalQuestions">10</span>
+                </div>
+            </div>
+            <div class="game-score">
+                <i class="fas fa-star"></i> <span id="playerScore">0</span> очков
+            </div>
+        </div>
+        
+        <div class="game-content">
+            <div class="question-container" id="questionContainer">
+                <!-- Вопрос будет загружен динамически -->
+            </div>
+            
+            <div class="answers-container" id="answersContainer">
+                <!-- Ответы будут загружены динамически -->
+            </div>
+        </div>
+        
+        <div class="game-players" id="gamePlayers">
+            <!-- Список игроков будет загружен динамически -->
+        </div>
     </div>
 
     <!-- Скрипты -->
     <script src="db.js"></script>
+    <script src="realtime.js"></script>
+    <script src="quiz-manager.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
