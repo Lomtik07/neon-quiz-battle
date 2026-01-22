@@ -7,10 +7,58 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+    <style>
+        /* Инлайн стили для быстрой загрузки */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            font-family: sans-serif;
+        }
+        
+        .fullscreen-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #00f3ff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loader-text {
+            color: #00f3ff;
+            font-size: 1rem;
+        }
+    </style>
 </head>
 <body>
     <!-- Уведомления -->
-    <div class="notification" id="notification">
+    <div class="notification" id="notification" style="display: none;">
         <strong id="notificationTitle">Уведомление</strong>
         <p id="notificationText">Текст уведомления</p>
     </div>
@@ -31,11 +79,11 @@
     <!-- Загрузчик -->
     <div class="fullscreen-loader" id="loader">
         <div class="loader-spinner"></div>
-        <div class="loader-text">Загрузка игры...</div>
+        <div class="loader-text">Загрузка...</div>
     </div>
 
     <!-- Главный контейнер -->
-    <div class="container" id="mainContainer">
+    <div class="container" id="mainContainer" style="display: none;">
         <!-- Заголовок -->
         <header>
             <h1><i class="fas fa-gamepad"></i> NEON QUIZ BATTLE</h1>
@@ -157,7 +205,7 @@
                         </select>
                     </div>
                     <div class="setting-group">
-                        <label>Время на вопрос (секунд):</label>
+                        <label>Время на вопрос:</label>
                         <select id="questionTime" class="input-field">
                             <option value="0">Без ограничения</option>
                             <option value="10">10 сек</option>
@@ -340,12 +388,6 @@
                 <span class="slider"></span>
                 <span class="switch-label">Включить звуковые эффекты</span>
             </label>
-            
-            <label class="switch">
-                <input type="checkbox" id="musicToggle" checked>
-                <span class="slider"></span>
-                <span class="switch-label">Фоновая музыка</span>
-            </label>
         </div>
         
         <div class="settings-group">
@@ -412,67 +454,57 @@
         </div>
     </div>
 
-    <!-- Экран создания викторины -->
-    <div class="container" id="quizCreatorContainer" style="display: none;">
-        <div class="quiz-creator-header">
-            <h2><i class="fas fa-edit"></i> СОЗДАНИЕ ВИКТОРИНЫ</h2>
-            <button class="btn btn-secondary" onclick="quizManager.hideQuizCreator()">
-                <i class="fas fa-arrow-left"></i> Назад
-            </button>
-        </div>
-        
-        <div class="quiz-creator">
-            <!-- Будет заполнено динамически -->
-        </div>
-    </div>
-
-    <!-- Экран моих викторин -->
-    <div class="container" id="myQuizzesContainer" style="display: none;">
-        <div class="my-quizzes-header">
-            <h2><i class="fas fa-list"></i> МОИ ВИКТОРИНЫ</h2>
-            <button class="btn btn-secondary" onclick="quizManager.hideMyQuizzes()">
-                <i class="fas fa-arrow-left"></i> Назад
-            </button>
-        </div>
-        
-        <div class="my-quizzes-list" id="myQuizzesList">
-            <!-- Будет заполнено динамически -->
-        </div>
-    </div>
-
-    <!-- Игровой экран -->
-    <div class="container" id="gameContainer" style="display: none;">
-        <div class="game-header">
-            <div class="game-info">
-                <div class="game-timer" id="gameTimer">20</div>
-                <div class="game-question-counter">
-                    Вопрос <span id="currentQuestion">1</span> из <span id="totalQuestions">10</span>
-                </div>
-            </div>
-            <div class="game-score">
-                <i class="fas fa-star"></i> <span id="playerScore">0</span> очков
-            </div>
-        </div>
-        
-        <div class="game-content">
-            <div class="question-container" id="questionContainer">
-                <!-- Вопрос будет загружен динамически -->
-            </div>
+    <!-- Скрипты с оптимизированной загрузкой -->
+    <script>
+        // Сначала загружаем только критически важные функции
+        function showNotification(title, text, color) {
+            const notification = document.getElementById('notification');
+            const titleEl = document.getElementById('notificationTitle');
+            const textEl = document.getElementById('notificationText');
             
-            <div class="answers-container" id="answersContainer">
-                <!-- Ответы будут загружены динамически -->
-            </div>
-        </div>
+            if (!notification || !titleEl || !textEl) return;
+            
+            titleEl.textContent = title;
+            textEl.textContent = text;
+            notification.style.borderColor = color;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
         
-        <div class="game-players" id="gamePlayers">
-            <!-- Список игроков будет загружен динамически -->
-        </div>
-    </div>
-
-    <!-- Скрипты -->
-    <script src="db.js"></script>
-    <script src="realtime.js"></script>
-    <script src="quiz-manager.js"></script>
-    <script src="game.js"></script>
+        function hideLoader() {
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = 'none';
+            }
+        }
+        
+        function showMainContainer() {
+            const mainContainer = document.getElementById('mainContainer');
+            if (mainContainer) {
+                mainContainer.style.display = 'block';
+            }
+        }
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            // Показываем интерфейс сразу
+            showMainContainer();
+            hideLoader();
+            
+            // Показываем экран авторизации
+            document.getElementById('authContainer').style.display = 'block';
+            
+            console.log('Базовый интерфейс загружен');
+        });
+    </script>
+    
+    <!-- Загружаем остальные скрипты асинхронно -->
+    <script src="db.js" defer></script>
+    <script src="game.js" defer></script>
+    <script src="quiz-manager.js" defer></script>
+    <script src="realtime.js" defer></script>
 </body>
 </html>
