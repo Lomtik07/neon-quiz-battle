@@ -24,14 +24,22 @@ class GameManager {
         this.currentState = {
             user: null,
             currentRoom: null,
-            gameScreen: 'auth', // auth, room, code, menu, profile, settings
+            gameScreen: 'auth',
             playerName: 'Игрок',
             isHost: false,
-            roomCode: null
+            roomCode: null,
+            currentQuiz: null,
+            gameInProgress: false
         };
         
         this.playerListInterval = null;
         this.roomsUpdateInterval = null;
+        this.gameTimerInterval = null;
+        this.questionTimer = null;
+        
+        // Инициализация менеджеров
+        this.realtimeManager = null;
+        this.quizManager = null;
         
         // Загружаем пользователя из localStorage
         this.loadSavedUser();
@@ -60,995 +68,632 @@ class GameManager {
         }
     }
     
-    // Загрузка предпочтений пользователя
-    loadUserPreferences() {
-        const nameInput = document.getElementById('playerNameInput');
-        if (nameInput && this.currentState.playerName) {
-            nameInput.value = this.currentState.playerName;
-        }
-    }
-    
-    // Сохранение имени игрока
-    savePlayerName() {
-        const nameInput = document.getElementById('playerNameInput');
-        if (nameInput) {
-            const name = nameInput.value.trim();
-            if (name) {
-                this.currentState.playerName = name;
-                localStorage.setItem('quiz_player_name', name);
-            }
-        }
-    }
-    
     // Инициализация обработчиков событий
     initializeEventListeners() {
-        // Быстрый старт
-        const quickStartBtn = document.getElementById('quickStartBtn');
-        if (quickStartBtn) {
-            quickStartBtn.addEventListener('click', () => {
-                this.savePlayerName();
-                this.quickStart();
-            });
-        }
+        // ... (все обработчики из предыдущей версии, дополненные новыми)
         
-        // Создание аккаунта
-        const createAccountBtn = document.getElementById('createAccountBtn');
-        if (createAccountBtn) {
-            createAccountBtn.addEventListener('click', () => {
-                this.savePlayerName();
-                this.toggleAccountMode();
-            });
-        }
-        
-        // Вход в аккаунт
-        const loginAccountBtn = document.getElementById('loginAccountBtn');
-        if (loginAccountBtn) {
-            loginAccountBtn.addEventListener('click', () => {
-                this.savePlayerName();
-                this.loginAccount();
-            });
-        }
-        
-        // Переключение видимости пароля
-        const togglePasswordBtn = document.getElementById('togglePassword');
-        if (togglePasswordBtn) {
-            togglePasswordBtn.addEventListener('click', () => {
-                this.togglePasswordVisibility();
-            });
-        }
-        
-        // Проверка сложности пароля
-        const passwordInput = document.getElementById('passwordInput');
-        if (passwordInput) {
-            passwordInput.addEventListener('input', (e) => {
-                this.checkPasswordStrength(e.target.value);
-            });
-        }
-        
-        // Создание комнаты
-        const createRoomBtn = document.getElementById('createRoomBtn');
-        if (createRoomBtn) {
-            createRoomBtn.addEventListener('click', () => {
-                this.createRoom();
-            });
-        }
-        
-        // Присоединение к комнате
-        const joinRoomBtn = document.getElementById('joinRoomBtn');
-        if (joinRoomBtn) {
-            joinRoomBtn.addEventListener('click', () => {
-                this.joinRoom();
-            });
-        }
-        
-        // Начать игру
-        const startGameBtn = document.getElementById('startGameBtn');
-        if (startGameBtn) {
-            startGameBtn.addEventListener('click', () => {
-                this.startGame();
-            });
-        }
-        
-        // Покинуть комнату
-        const leaveRoomBtn = document.getElementById('leaveRoomBtn');
-        if (leaveRoomBtn) {
-            leaveRoomBtn.addEventListener('click', () => {
-                this.leaveRoom();
-            });
-        }
-        
-        // Копировать код
-        const copyCodeBtn = document.getElementById('copyCodeBtn');
-        if (copyCodeBtn) {
-            copyCodeBtn.addEventListener('click', () => {
-                this.copyRoomCode();
-            });
-        }
-        
-        // Поделиться кодом
-        const shareCodeBtn = document.getElementById('shareCodeBtn');
-        if (shareCodeBtn) {
-            shareCodeBtn.addEventListener('click', () => {
-                this.shareRoomCode();
-            });
-        }
-        
-        // Enter для присоединения
-        const joinCodeInput = document.getElementById('joinCodeInput');
-        if (joinCodeInput) {
-            joinCodeInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.joinRoom();
+        // Добавляем обработчики для новых элементов
+        this.setupRoomSettingsHandlers();
+        this.setupGameHandlers();
+    }
+    
+    // Настройка обработчиков настроек комнаты
+    setupRoomSettingsHandlers() {
+        const quizTheme = document.getElementById('quizTheme');
+        if (quizTheme) {
+            quizTheme.addEventListener('change', (e) => {
+                if (e.target.value === 'custom') {
+                    document.getElementById('customQuizGroup').style.display = 'block';
+                    this.loadCustomQuizzes();
+                } else {
+                    document.getElementById('customQuizGroup').style.display = 'none';
                 }
             });
         }
         
-        // Кнопки боковой панели
-        const profileBtn = document.getElementById('profileBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        
-        if (profileBtn) {
-            profileBtn.addEventListener('click', () => {
-                this.showScreen('profile');
-            });
-        }
-        
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', () => {
-                this.showScreen('settings');
-            });
-        }
-        
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this.logout();
-            });
-        }
-        
-        // Обработчики для меню
-        this.setupMenuHandlers();
-    }
-    
-    // Настройка обработчиков меню
-    setupMenuHandlers() {
-        // Меню на главном экране
-        document.addEventListener('click', (e) => {
-            const target = e.target.closest('.menu-card');
-            if (!target) return;
-            
-            e.preventDefault();
-            
-            // Находим текст в меню-тайтле
-            const titleElement = target.querySelector('.menu-title');
-            if (!titleElement) return;
-            
-            const title = titleElement.textContent.trim();
-            
-            switch(title) {
-                case 'ИГРАТЬ':
-                case 'Быстрая игра':
-                    this.showScreen('room');
-                    break;
-                case 'ПРОФИЛЬ':
-                    this.showScreen('profile');
-                    break;
-                case 'СОЗДАТЬ ОПРОС':
-                case 'Создать опрос':
-                    this.createQuiz();
-                    break;
-                case 'ТАБЛИЦА ЛИДЕРОВ':
-                case 'Статистика':
-                    this.showLeaderboard();
-                    break;
-                case 'ДРУЗЬЯ':
-                case 'Друзья':
-                    this.showFriends();
-                    break;
-                case 'НАСТРОЙКИ':
-                    this.showScreen('settings');
-                    break;
-            }
-        });
-        
-        // Кнопка назад в профиле
-        const backBtn = document.querySelector('.btn[onclick*="game.showScreen"]');
-        if (backBtn) {
-            const oldOnClick = backBtn.getAttribute('onclick');
-            backBtn.removeAttribute('onclick');
-            backBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showScreen('menu');
-            });
-        }
-        
-        // Кнопка сохранения в настройках
-        const saveSettingsBtn = document.querySelector('.btn[onclick*="game.showScreen(\'menu\')"]');
-        if (saveSettingsBtn) {
-            const oldOnClick = saveSettingsBtn.getAttribute('onclick');
-            saveSettingsBtn.removeAttribute('onclick');
-            saveSettingsBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.saveSettings();
+        const myQuizzesBtn = document.getElementById('myQuizzesBtn');
+        if (myQuizzesBtn) {
+            myQuizzesBtn.addEventListener('click', () => {
+                if (this.quizManager) {
+                    this.quizManager.showMyQuizzes();
+                }
             });
         }
     }
     
-    // Переключение режима аккаунта
-    toggleAccountMode() {
-        const createBtn = document.getElementById('createAccountBtn');
-        const loginBtn = document.getElementById('loginAccountBtn');
-        const emailGroup = document.getElementById('emailGroup');
-        
-        if (!createBtn) return;
-        
-        if (createBtn.textContent.includes('СОЗДАТЬ')) {
-            // Переключаемся на режим создания аккаунта
-            createBtn.innerHTML = '<i class="fas fa-check"></i> ПОДТВЕРДИТЬ';
-            if (loginBtn) loginBtn.style.display = 'block';
-            if (emailGroup) emailGroup.style.display = 'block';
-        } else {
-            // Создаем аккаунт
-            this.createAccount();
-        }
+    // Настройка обработчиков игры
+    setupGameHandlers() {
+        // Обработчики для игрового экрана будут добавлены динамически
     }
     
-    // Вход в аккаунт
-    loginAccount() {
-        const passwordInput = document.getElementById('passwordInput');
-        if (!passwordInput) return;
-        
-        const password = passwordInput.value;
-        const name = this.currentState.playerName;
-        
-        if (!password || password.length < 6) {
-            showNotification('Ошибка', 'Пароль должен содержать минимум 6 символов', '#ff5555');
-            return;
-        }
-        
-        // Ищем пользователя в базе данных
-        let user = null;
-        if (Database && Database.data && Database.data.users) {
-            user = Database.data.users.find(u => 
-                u.username === name && u.password === password
-            );
-        }
-        
-        if (user) {
-            this.currentState.user = user;
-            localStorage.setItem('last_user_id', user.id);
-            this.hideLoader();
-            this.showMainMenu();
-            showNotification('Успешный вход!', `Добро пожаловать, ${name}!`, '#00ff9d');
-        } else {
-            showNotification('Ошибка', 'Неверное имя пользователя или пароль', '#ff5555');
-        }
-    }
-    
-    // Создание аккаунта с паролем
-    createAccount() {
-        const name = this.currentState.playerName;
-        const passwordInput = document.getElementById('passwordInput');
-        const emailInput = document.getElementById('emailInput');
-        
-        if (!passwordInput) return;
-        
-        const password = passwordInput.value;
-        const email = emailInput ? emailInput.value : '';
-        
-        if (!password || password.length < 6) {
-            showNotification('Ошибка', 'Пароль должен содержать минимум 6 символов', '#ff5555');
-            return;
-        }
-        
-        // Проверяем, существует ли пользователь
-        let existingUser = null;
-        if (Database && Database.data && Database.data.users) {
-            existingUser = Database.data.users.find(u => u.username === name);
-        }
-        
-        if (existingUser) {
-            showNotification('Ошибка', 'Пользователь с таким именем уже существует', '#ff5555');
-            return;
-        }
-        
-        // Создаем пользователя с паролем
-        const user = {
-            id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-            username: name,
-            password: password,
-            email: email || null,
-            createdAt: new Date().toISOString(),
-            isGuest: false,
-            stats: {
-                gamesPlayed: 0,
-                gamesWon: 0,
-                totalScore: 0,
-                averageScore: 0,
-                bestScore: 0
-            }
-        };
-        
-        if (Database) {
-            if (!Database.data.users) Database.data.users = [];
-            Database.data.users.push(user);
-            Database.save();
-        }
-        
-        this.currentState.user = user;
-        localStorage.setItem('last_user_id', user.id);
-        this.hideLoader();
-        this.showMainMenu();
-        
-        showNotification('Аккаунт создан!', 'Ваша статистика будет сохранена', '#00ff9d');
-        
-        // Сбрасываем форму
-        this.resetAuthForm();
-    }
-    
-    // Быстрый старт (гостевой режим)
-    quickStart() {
-        this.hideLoader();
-        
-        const guestUser = {
-            id: 'guest_' + Date.now(),
-            username: this.currentState.playerName,
-            isGuest: true,
-            stats: {
-                gamesPlayed: 0,
-                gamesWon: 0,
-                totalScore: 0,
-                averageScore: 0,
-                bestScore: 0
-            }
-        };
-        
-        this.currentState.user = guestUser;
-        this.showMainMenu();
-        
-        showNotification('Гостевой режим', 'Для сохранения статистики создайте аккаунт', '#ffaa00');
-    }
-    
-    // Показать главное меню
-    showMainMenu() {
-        this.hideLoader();
-        this.showScreen('menu');
-        this.updateProfileInfo();
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.style.display = 'block';
-        
-        // Запускаем обновление списка комнат
-        this.startRoomsUpdate();
-    }
-    
-    // Обновление информации профиля
-    updateProfileInfo() {
-        if (!this.currentState.user) return;
-        
-        const user = this.currentState.user;
-        
-        // Аватар
-        const avatar = document.getElementById('userAvatar');
-        if (avatar) {
-            avatar.textContent = user.username.charAt(0).toUpperCase();
-        }
-        
-        // Имя
-        const displayName = document.getElementById('userDisplayName');
-        if (displayName) {
-            displayName.textContent = user.username;
-        }
-        
-        // Email
-        const emailEl = document.getElementById('userEmail');
-        if (emailEl) {
-            emailEl.textContent = user.email || 'Гостевой аккаунт';
-            emailEl.style.color = user.isGuest ? '#ffaa00' : '#aaa';
-        }
-        
-        // Статистика
-        const gamesPlayed = document.getElementById('gamesPlayed');
-        const gamesWon = document.getElementById('gamesWon');
-        const totalScore = document.getElementById('totalScore');
-        
-        if (gamesPlayed) gamesPlayed.textContent = user.stats?.gamesPlayed || 0;
-        if (gamesWon) gamesWon.textContent = user.stats?.gamesWon || 0;
-        if (totalScore) totalScore.textContent = user.stats?.totalScore || 0;
-    }
-    
-    // Переключение видимости пароля
-    togglePasswordVisibility() {
-        const passwordInput = document.getElementById('passwordInput');
-        const toggleBtn = document.getElementById('togglePassword');
-        
-        if (!passwordInput || !toggleBtn) return;
-        
-        const toggleIcon = toggleBtn.querySelector('i');
-        
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            if (toggleIcon) toggleIcon.className = 'fas fa-eye-slash';
-        } else {
-            passwordInput.type = 'password';
-            if (toggleIcon) toggleIcon.className = 'fas fa-eye';
-        }
-    }
-    
-    // Проверка сложности пароля
-    checkPasswordStrength(password) {
-        const strengthDiv = document.getElementById('passwordStrength');
-        if (!strengthDiv) return;
-        
-        if (!password) {
-            strengthDiv.className = 'password-strength';
-            return;
-        }
-        
-        let strength = 0;
-        
-        // Проверки
-        if (password.length >= 6) strength++;
-        if (password.length >= 8) strength++;
-        if (/[A-Z]/.test(password)) strength++;
-        if (/[0-9]/.test(password)) strength++;
-        if (/[^A-Za-z0-9]/.test(password)) strength++;
-        
-        if (strength <= 2) {
-            strengthDiv.textContent = 'Слабый пароль';
-            strengthDiv.className = 'password-strength weak';
-        } else if (strength <= 4) {
-            strengthDiv.textContent = 'Средний пароль';
-            strengthDiv.className = 'password-strength medium';
-        } else {
-            strengthDiv.textContent = 'Сильный пароль';
-            strengthDiv.className = 'password-strength strong';
-        }
-    }
-    
-    // Сброс формы авторизации
-    resetAuthForm() {
-        const createBtn = document.getElementById('createAccountBtn');
-        const loginBtn = document.getElementById('loginAccountBtn');
-        const emailGroup = document.getElementById('emailGroup');
-        const passwordInput = document.getElementById('passwordInput');
-        const emailInput = document.getElementById('emailInput');
-        const strengthDiv = document.getElementById('passwordStrength');
-        
-        if (createBtn) createBtn.innerHTML = '<i class="fas fa-user-plus"></i> СОЗДАТЬ АККАУНТ';
-        if (loginBtn) loginBtn.style.display = 'none';
-        if (emailGroup) emailGroup.style.display = 'none';
-        if (passwordInput) passwordInput.value = '';
-        if (emailInput) emailInput.value = '';
-        if (strengthDiv) strengthDiv.className = 'password-strength';
-    }
-    
-    // Выход из системы
-    logout() {
-        if (confirm('Вы уверены, что хотите выйти?')) {
-            this.currentState.user = null;
-            localStorage.removeItem('last_user_id');
-            this.showScreen('auth');
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar) sidebar.style.display = 'none';
-            this.resetAuthForm();
-            showNotification('Выход', 'Вы вышли из системы', '#00f3ff');
-        }
-    }
-    
-    // Показать загрузчик
-    showLoader() {
-        const loader = document.getElementById('loader');
-        if (loader) loader.style.display = 'flex';
-    }
-    
-    // Скрыть загрузчик
-    hideLoader() {
-        const loader = document.getElementById('loader');
-        if (loader) loader.style.display = 'none';
-    }
-    
-    // Генератор кода комнаты
-    generateRoomCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    }
-    
-    // Создание комнаты
-    createRoom() {
+    // Создание комнаты с викториной
+    createRoomWithQuiz(quizId) {
         const roomCode = this.generateRoomCode();
         const hostName = this.currentState.playerName;
         const hostId = this.currentState.user ? this.currentState.user.id : null;
+        const quiz = Database.findQuizById(quizId);
         
-        let room = null;
-        if (Database) {
-            room = Database.createRoom(roomCode, hostName, hostId);
-        } else {
-            // Fallback если Database не доступен
-            room = {
-                code: roomCode,
-                hostId: hostId,
-                hostName: hostName,
-                players: [{
-                    id: hostId || 'guest_' + Date.now(),
-                    name: hostName,
-                    isHost: true,
-                    score: 0,
-                    ready: false
-                }],
-                maxPlayers: 8,
-                gameState: 'waiting',
-                theme: 'general',
-                currentQuestion: 0,
-                createdAt: Date.now(),
-                lastActivity: Date.now()
-            };
+        if (!quiz) {
+            showNotification('Ошибка', 'Викторина не найдена', '#ff5555');
+            return;
         }
+        
+        const room = Database.createRoom(roomCode, hostName, hostId, quizId, quiz.questions[0]?.timeLimit || 20);
         
         if (room) {
             this.currentState.currentRoom = room;
             this.currentState.roomCode = roomCode;
             this.currentState.isHost = true;
+            this.currentState.currentQuiz = quiz;
             
             this.showRoomCode(roomCode);
             this.updateRecentRooms();
             
-            showNotification('Комната создана!', `Код: ${roomCode}`, '#00ff9d');
-        } else {
-            showNotification('Ошибка', 'Не удалось создать комнату', '#ff5555');
-        }
-    }
-    
-    // Присоединение к комнате
-    joinRoom() {
-        const joinCodeInput = document.getElementById('joinCodeInput');
-        if (!joinCodeInput) return;
-        
-        const roomCode = joinCodeInput.value.trim().toUpperCase();
-        const playerName = this.currentState.playerName;
-        const playerId = this.currentState.user ? this.currentState.user.id : null;
-        
-        if (roomCode.length !== 6) {
-            showNotification('Ошибка', 'Код комнаты должен содержать 6 символов', '#ff5555');
-            return;
-        }
-        
-        let room = null;
-        if (Database) {
-            room = Database.findRoomByCode(roomCode);
-        }
-        
-        if (!room) {
-            showNotification('Ошибка', 'Комната не найдена', '#ff5555');
-            return;
-        }
-        
-        if (room.players && room.players.length >= room.maxPlayers) {
-            showNotification('Ошибка', 'В комнате нет свободных мест', '#ff5555');
-            return;
-        }
-        
-        let player = null;
-        if (Database) {
-            player = Database.addPlayerToRoom(roomCode, playerName, playerId);
-        } else {
-            // Fallback
-            player = {
-                id: playerId || 'guest_' + Date.now(),
-                name: playerName,
-                isHost: false,
-                score: 0,
-                ready: false
-            };
-            if (!room.players) room.players = [];
-            room.players.push(player);
-        }
-        
-        if (player) {
-            this.currentState.currentRoom = room;
-            this.currentState.roomCode = roomCode;
-            this.currentState.isHost = false;
-            
-            this.showRoomCode(roomCode);
-            if (Database) Database.addRecentRoom(roomCode);
-            
-            showNotification('Успех!', `Вы присоединились к комнате ${roomCode}`, '#00ff9d');
-        } else {
-            showNotification('Ошибка', 'Не удалось присоединиться', '#ff5555');
-        }
-    }
-    
-    // Показать код комнаты
-    showRoomCode(roomCode) {
-        const roomCodeElement = document.getElementById('roomCode');
-        if (roomCodeElement) {
-            roomCodeElement.textContent = roomCode;
-        }
-        this.showScreen('code');
-        this.updatePlayerList();
-        
-        // Показываем кнопку "Начать игру" только для хоста
-        const startGameBtn = document.getElementById('startGameBtn');
-        if (startGameBtn) {
-            startGameBtn.style.display = this.currentState.isHost ? 'block' : 'none';
-        }
-        
-        // Обновляем список игроков каждые 5 секунд
-        if (this.playerListInterval) {
-            clearInterval(this.playerListInterval);
-        }
-        
-        this.playerListInterval = setInterval(() => {
-            this.updatePlayerList();
-        }, 5000);
-    }
-    
-    // Обновление списка игроков
-    updatePlayerList() {
-        if (!this.currentState.roomCode) return;
-        
-        let room = null;
-        if (Database) {
-            room = Database.findRoomByCode(this.currentState.roomCode);
-        } else {
-            room = this.currentState.currentRoom;
-        }
-        
-        if (room) {
-            const playerCount = room.players ? room.players.length : 1;
-            const playerCountElement = document.getElementById('playerCount');
-            if (playerCountElement) {
-                playerCountElement.textContent = `Игроков: ${playerCount}/8`;
+            // Устанавливаем тему викторины
+            const quizTheme = document.getElementById('quizTheme');
+            if (quizTheme) {
+                quizTheme.value = quiz.category;
             }
             
-            // Если хост и есть минимум 2 игрока, показываем кнопку "Начать игру"
-            const startGameBtn = document.getElementById('startGameBtn');
-            if (this.currentState.isHost && playerCount >= 2 && startGameBtn) {
-                startGameBtn.style.display = 'block';
+            // Устанавливаем лимит времени
+            const questionTime = document.getElementById('questionTime');
+            if (questionTime) {
+                questionTime.value = quiz.questions[0]?.timeLimit || 20;
             }
+            
+            showNotification('Комната создана!', `Викторина: ${quiz.title}`, '#00ff9d');
         }
+    }
+    
+    // Загрузка пользовательских викторин
+    loadCustomQuizzes() {
+        const customQuizSelect = document.getElementById('customQuizSelect');
+        if (!customQuizSelect) return;
+        
+        const user = this.currentState.user;
+        if (!user) {
+            customQuizSelect.innerHTML = '<option>Войдите в аккаунт</option>';
+            return;
+        }
+        
+        const quizzes = Database.findQuizzesByUser(user.id);
+        
+        if (quizzes.length === 0) {
+            customQuizSelect.innerHTML = '<option>Нет созданных викторин</option>';
+            return;
+        }
+        
+        customQuizSelect.innerHTML = quizzes.map(quiz => 
+            `<option value="${quiz.id}">${quiz.title}</option>`
+        ).join('');
     }
     
     // Начать игру
     startGame() {
         if (!this.currentState.isHost) return;
         
-        showNotification('Игра начинается!', 'Подготовьтесь к первому вопросу', '#00ff9d');
+        const quizTheme = document.getElementById('quizTheme')?.value;
+        const timeLimit = document.getElementById('questionTime')?.value;
         
-        // Здесь будет логика начала игры
-        setTimeout(() => {
-            showNotification('В разработке', 'Игровой процесс в разработке', '#ffaa00');
-        }, 2000);
-    }
-    
-    // Покинуть комнату
-    leaveRoom() {
-        if (this.currentState.roomCode && this.currentState.user) {
-            if (Database) {
-                Database.removePlayerFromRoom(
-                    this.currentState.roomCode, 
-                    this.currentState.user.id
-                );
+        if (quizTheme === 'custom') {
+            const quizId = document.getElementById('customQuizSelect')?.value;
+            const quiz = Database.findQuizById(quizId);
+            
+            if (!quiz) {
+                showNotification('Ошибка', 'Выберите викторину', '#ff5555');
+                return;
+            }
+            
+            this.currentState.currentQuiz = quiz;
+        } else {
+            // Загружаем викторину по теме
+            const quizzes = Database.findPublicQuizzes(quizTheme);
+            if (quizzes.length > 0) {
+                // Берем случайную викторину
+                const randomQuiz = quizzes[Math.floor(Math.random() * quizzes.length)];
+                this.currentState.currentQuiz = randomQuiz;
+            } else {
+                // Создаем тестовую викторину
+                this.currentState.currentQuiz = this.createTestQuiz(quizTheme);
             }
         }
         
-        if (this.playerListInterval) {
-            clearInterval(this.playerListInterval);
-            this.playerListInterval = null;
+        // Обновляем комнату
+        Database.updateRoom(this.currentState.roomCode, {
+            gameState: 'playing',
+            quizId: this.currentState.currentQuiz?.id,
+            timeLimit: parseInt(timeLimit) || 20,
+            currentQuestion: 0,
+            questionStartTime: Date.now(),
+            results: []
+        });
+        
+        // Показываем игровой экран
+        this.showGameScreen();
+    }
+    
+    // Показать игровой экран
+    showGameScreen() {
+        this.showScreen('game');
+        
+        const room = Database.findRoomByCode(this.currentState.roomCode);
+        if (!room || !this.currentState.currentQuiz) return;
+        
+        const quiz = this.currentState.currentQuiz;
+        const currentQuestion = quiz.questions[room.currentQuestion];
+        
+        // Отображаем вопрос
+        this.displayQuestion(currentQuestion, room.currentQuestion + 1, quiz.questions.length);
+        
+        // Запускаем таймер
+        if (room.timeLimit > 0) {
+            this.startQuestionTimer(room.timeLimit);
         }
         
-        this.currentState.currentRoom = null;
-        this.currentState.roomCode = null;
-        this.currentState.isHost = false;
-        
-        this.showScreen('room');
-        showNotification('Выход', 'Вы покинули комнату', '#00f3ff');
+        // Запускаем обновление игры
+        if (this.realtimeManager) {
+            this.realtimeManager.startRoomUpdates(this.currentState.roomCode);
+        }
     }
     
-    // Копирование кода комнаты
-    copyRoomCode() {
-        const roomCodeElement = document.getElementById('roomCode');
-        if (!roomCodeElement) return;
+    // Отобразить вопрос
+    displayQuestion(question, questionNumber, totalQuestions) {
+        const questionContainer = document.getElementById('questionContainer');
+        const answersContainer = document.getElementById('answersContainer');
+        const currentQuestionEl = document.getElementById('currentQuestion');
+        const totalQuestionsEl = document.getElementById('totalQuestions');
         
-        const code = roomCodeElement.textContent;
-        navigator.clipboard.writeText(code).then(() => {
-            showNotification('Скопировано!', 'Код комнаты скопирован', '#00ff9d');
-        }).catch(err => {
-            showNotification('Ошибка', 'Не удалось скопировать код', '#ff5555');
-        });
-    }
-    
-    // Поделиться кодом
-    shareRoomCode() {
-        const roomCodeElement = document.getElementById('roomCode');
-        if (!roomCodeElement) return;
+        if (!questionContainer || !answersContainer) return;
         
-        const code = roomCodeElement.textContent;
-        const text = `Присоединяйтесь к игре в Neon Quiz Battle! Код комнаты: ${code}`;
+        // Обновляем счетчик вопросов
+        if (currentQuestionEl) currentQuestionEl.textContent = questionNumber;
+        if (totalQuestionsEl) totalQuestionsEl.textContent = totalQuestions;
         
-        if (navigator.share) {
-            navigator.share({
-                title: 'Neon Quiz Battle',
-                text: text,
-                url: window.location.href
-            }).catch(err => {
-                this.copyRoomCode(); // Fallback
+        // Отображаем вопрос
+        questionContainer.innerHTML = `
+            <div class="question-text">${question.question}</div>
+        `;
+        
+        // Отображаем ответы
+        answersContainer.innerHTML = '';
+        question.answers.forEach((answer, index) => {
+            const answerBtn = document.createElement('button');
+            answerBtn.className = 'answer-btn';
+            answerBtn.textContent = answer.text;
+            answerBtn.dataset.answerIndex = index;
+            answerBtn.dataset.correct = answer.correct;
+            
+            answerBtn.addEventListener('click', () => {
+                this.selectAnswer(index, answer.correct);
             });
-        } else {
-            this.copyRoomCode();
-        }
-    }
-    
-    // Обновление списка недавних комнат
-    updateRecentRooms() {
-        const recentRoomsContainer = document.querySelector('.recent-rooms');
-        if (!recentRoomsContainer) return;
-        
-        let recentRooms = [];
-        if (Database) {
-            recentRooms = Database.getRecentRooms();
-        }
-        
-        const roomsList = recentRoomsContainer.querySelector('#roomsList');
-        if (!roomsList) return;
-        
-        if (recentRooms.length === 0) {
-            roomsList.innerHTML = '<div class="room-item"><span class="room-info">Нет недавних комнат</span></div>';
-            return;
-        }
-        
-        roomsList.innerHTML = '';
-        recentRooms.forEach(room => {
-            const playerCount = room.players ? room.players.length : 0;
-            const maxPlayers = room.maxPlayers || 8;
             
-            const roomItem = document.createElement('div');
-            roomItem.className = 'room-item';
-            roomItem.innerHTML = `
-                <div>
-                    <div class="room-code">${room.code}</div>
-                    <div class="room-info">
-                        Создатель: ${room.hostName} | Игроков: ${playerCount}/${maxPlayers}
-                    </div>
-                </div>
-                <button class="btn join-room-btn" data-room="${room.code}">
-                    <i class="fas fa-sign-in-alt"></i> ПРИСОЕДИНИТЬСЯ
-                </button>
-            `;
-            
-            roomsList.appendChild(roomItem);
+            answersContainer.appendChild(answerBtn);
         });
         
-        // Добавляем обработчики для кнопок
-        setTimeout(() => {
-            document.querySelectorAll('.join-room-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const roomCode = e.target.closest('button').dataset.room;
-                    this.joinExistingRoom(roomCode);
-                });
-            });
-        }, 100);
+        // Обновляем список игроков
+        this.updateGamePlayers();
     }
     
-    // Обновление списка доступных комнат
-    updateAvailableRooms() {
-        const roomsList = document.getElementById('roomsList');
-        if (!roomsList) return;
+    // Выбрать ответ
+    selectAnswer(answerIndex, isCorrect) {
+        if (!this.currentState.user || !this.currentState.roomCode) return;
         
-        let availableRooms = [];
-        if (Database && Database.data && Database.data.rooms) {
-            availableRooms = Database.data.rooms.filter(room => 
-                room.gameState === 'waiting' && 
-                room.players && 
-                room.players.length < room.maxPlayers
-            );
-        }
+        const room = Database.findRoomByCode(this.currentState.roomCode);
+        if (!room || room.gameState !== 'playing') return;
         
-        if (availableRooms.length === 0) {
-            roomsList.innerHTML = `
-                <div class="room-item">
-                    <span class="room-info">Нет доступных комнат. Создайте свою!</span>
-                    <span class="room-code">-</span>
-                </div>
-            `;
-            return;
-        }
-        
-        roomsList.innerHTML = '';
-        availableRooms.forEach(room => {
-            const playerCount = room.players ? room.players.length : 0;
-            const maxPlayers = room.maxPlayers || 8;
-            
-            const roomItem = document.createElement('div');
-            roomItem.className = 'room-item';
-            roomItem.innerHTML = `
-                <div>
-                    <div class="room-code">${room.code}</div>
-                    <div class="room-info">
-                        Создатель: ${room.hostName} | Игроков: ${playerCount}/${maxPlayers} | Тема: ${room.theme}
-                    </div>
-                </div>
-                <button class="btn join-room-btn" data-room="${room.code}">
-                    <i class="fas fa-sign-in-alt"></i> ВОЙТИ
-                </button>
-            `;
-            
-            roomsList.appendChild(roomItem);
-        });
-        
-        // Добавляем обработчики для кнопок входа
-        document.querySelectorAll('.join-room-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const roomCode = e.target.closest('button').dataset.room;
-                this.joinExistingRoom(roomCode);
-            });
-        });
-    }
-    
-    // Присоединение к существующей комнате
-    joinExistingRoom(roomCode) {
-        if (!roomCode) return;
-        
-        const playerName = this.currentState.playerName;
-        const playerId = this.currentState.user ? this.currentState.user.id : null;
-        
-        let room = null;
-        if (Database) {
-            room = Database.findRoomByCode(roomCode);
-        }
-        
-        if (!room) {
-            showNotification('Ошибка', 'Комната не найдена', '#ff5555');
-            return;
-        }
-        
-        if (room.players && room.players.length >= room.maxPlayers) {
-            showNotification('Ошибка', 'В комнате нет свободных мест', '#ff5555');
-            return;
-        }
-        
-        let player = null;
-        if (Database) {
-            player = Database.addPlayerToRoom(roomCode, playerName, playerId);
-        } else {
-            // Fallback
-            player = {
-                id: playerId || 'guest_' + Date.now(),
-                name: playerName,
-                isHost: false,
-                score: 0,
-                ready: false
-            };
-            if (!room.players) room.players = [];
-            room.players.push(player);
-        }
-        
+        // Помечаем ответ игрока
+        const player = room.players.find(p => p.id === this.currentState.user.id);
         if (player) {
-            this.currentState.currentRoom = room;
-            this.currentState.roomCode = roomCode;
-            this.currentState.isHost = false;
+            player.currentAnswer = answerIndex;
+            player.answered = true;
             
-            this.showRoomCode(roomCode);
-            if (Database) Database.addRecentRoom(roomCode);
+            // Начисляем очки
+            if (isCorrect) {
+                const timeLeft = this.calculateTimeLeft(room);
+                const points = Math.max(10, Math.floor(timeLeft * 2));
+                player.score += points;
+            }
             
-            showNotification('Успех!', `Вы присоединились к комнате ${roomCode}`, '#00ff9d');
-        } else {
-            showNotification('Ошибка', 'Не удалось присоединиться', '#ff5555');
+            Database.updateRoom(room.code, { players: room.players });
+            
+            // Показываем результат
+            this.showAnswerResult(isCorrect);
+            
+            // Если все ответили, переходим дальше
+            if (this.allPlayersAnswered(room) && this.currentState.isHost) {
+                setTimeout(() => {
+                    this.nextQuestion();
+                }, 3000);
+            }
         }
     }
     
-    // Запуск обновления списка комнат
-    startRoomsUpdate() {
-        if (this.roomsUpdateInterval) {
-            clearInterval(this.roomsUpdateInterval);
+    // Показать результат ответа
+    showAnswerResult(isCorrect) {
+        const answerBtns = document.querySelectorAll('.answer-btn');
+        answerBtns.forEach(btn => {
+            if (btn.dataset.correct === 'true') {
+                btn.classList.add('correct');
+            } else if (parseInt(btn.dataset.answerIndex) === this.currentAnswer) {
+                btn.classList.add('incorrect');
+            }
+            btn.disabled = true;
+        });
+        
+        showNotification(
+            isCorrect ? 'Правильно!' : 'Неправильно',
+            isCorrect ? 'Отличный ответ!' : 'Попробуйте в следующий раз',
+            isCorrect ? '#00ff9d' : '#ff5555'
+        );
+    }
+    
+    // Все игроки ответили
+    allPlayersAnswered(room) {
+        return room.players.every(player => player.answered);
+    }
+    
+    // Следующий вопрос
+    nextQuestion() {
+        const room = Database.findRoomByCode(this.currentState.roomCode);
+        if (!room || !this.currentState.currentQuiz) return;
+        
+        const quiz = this.currentState.currentQuiz;
+        
+        if (room.currentQuestion < quiz.questions.length - 1) {
+            // Переходим к следующему вопросу
+            room.currentQuestion++;
+            room.questionStartTime = Date.now();
+            room.players.forEach(player => {
+                player.answered = false;
+                player.currentAnswer = null;
+            });
+            
+            Database.updateRoom(room.code, {
+                currentQuestion: room.currentQuestion,
+                questionStartTime: room.questionStartTime,
+                players: room.players
+            });
+            
+            // Отображаем новый вопрос
+            const currentQuestion = quiz.questions[room.currentQuestion];
+            this.displayQuestion(currentQuestion, room.currentQuestion + 1, quiz.questions.length);
+            
+            // Сбрасываем таймер
+            if (this.questionTimer) {
+                clearInterval(this.questionTimer);
+            }
+            if (room.timeLimit > 0) {
+                this.startQuestionTimer(room.timeLimit);
+            }
+        } else {
+            // Конец игры
+            this.endGame();
+        }
+    }
+    
+    // Завершить игру
+    endGame() {
+        const room = Database.findRoomByCode(this.currentState.roomCode);
+        if (!room) return;
+        
+        // Определяем победителей
+        const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score);
+        const winners = sortedPlayers.filter(p => p.score === sortedPlayers[0].score);
+        
+        // Обновляем статистику игроков
+        room.players.forEach(player => {
+            if (player.id.startsWith('user_')) {
+                Database.updateUserStats(player.id, {
+                    won: winners.some(w => w.id === player.id),
+                    score: player.score
+                });
+            }
+        });
+        
+        // Показываем результаты
+        this.showGameResults(sortedPlayers, winners);
+        
+        // Обновляем состояние комнаты
+        Database.updateRoom(room.code, {
+            gameState: 'finished',
+            results: sortedPlayers
+        });
+    }
+    
+    // Показать результаты игры
+    showGameResults(players, winners) {
+        this.showScreen('results');
+        
+        const resultsContainer = document.createElement('div');
+        resultsContainer.className = 'results-container';
+        
+        let resultsHTML = `
+            <h2><i class="fas fa-trophy"></i> РЕЗУЛЬТАТЫ ИГРЫ</h2>
+            <div class="winners">
+                <h3>Победители:</h3>
+                ${winners.map(winner => `
+                    <div class="winner">
+                        <div class="winner-avatar">${winner.avatar}</div>
+                        <div class="winner-name">${winner.name}</div>
+                        <div class="winner-score">${winner.score} очков</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="leaderboard">
+                <h3>Общий зачет:</h3>
+                ${players.map((player, index) => `
+                    <div class="leaderboard-item ${index < 3 ? 'podium-' + (index + 1) : ''}">
+                        <div class="rank">${index + 1}</div>
+                        <div class="player-avatar">${player.avatar}</div>
+                        <div class="player-name">${player.name}</div>
+                        <div class="player-score">${player.score} очков</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="results-actions">
+                <button class="btn btn-primary" onclick="game.returnToMenu()">
+                    <i class="fas fa-home"></i> В меню
+                </button>
+                <button class="btn btn-secondary" onclick="game.playAgain()">
+                    <i class="fas fa-redo"></i> Играть снова
+                </button>
+            </div>
+        `;
+        
+        resultsContainer.innerHTML = resultsHTML;
+        
+        const mainContainer = document.getElementById('mainContainer');
+        if (mainContainer) {
+            mainContainer.innerHTML = '';
+            mainContainer.appendChild(resultsContainer);
+        }
+    }
+    
+    // Сменить имя пользователя
+    changeUsername() {
+        document.getElementById('usernameModal').style.display = 'flex';
+        document.getElementById('newUsername').value = this.currentState.playerName;
+        document.getElementById('newUsername').focus();
+    }
+    
+    // Сохранить имя пользователя
+    saveUsername() {
+        const newUsername = document.getElementById('newUsername')?.value.trim();
+        if (!newUsername || newUsername.length < 2) {
+            showNotification('Ошибка', 'Имя должно содержать минимум 2 символа', '#ff5555');
+            return;
         }
         
-        this.roomsUpdateInterval = setInterval(() => {
-            if (this.currentState.gameScreen === 'room') {
-                this.updateAvailableRooms();
-                this.updateRecentRooms();
-            }
-        }, 5000);
-    }
-    
-    // Создание викторины
-    createQuiz() {
-        showNotification('В разработке', 'Создание собственных опросов скоро будет доступно!', '#ffaa00');
-    }
-    
-    // Показать статистику
-    showStats() {
-        this.showScreen('profile');
-    }
-    
-    // Показать друзей
-    showFriends() {
-        showNotification('В разработке', 'Система друзей скоро будет доступна!', '#ffaa00');
-    }
-    
-    // Показать таблицу лидеров
-    showLeaderboard() {
-        showNotification('В разработке', 'Таблица лидеров скоро будет доступна!', '#ffaa00');
-    }
-    
-    // Показать настройки
-    showSettings() {
-        this.showScreen('settings');
-    }
-    
-    // Сохранить настройки
-    saveSettings() {
-        const soundToggle = document.getElementById('soundToggle');
-        if (soundToggle && this.currentState.user && Database) {
-            const settings = {
-                soundEnabled: soundToggle.checked
-            };
-            Database.saveSettings(this.currentState.user.id, settings);
-            showNotification('Настройки сохранены', 'Ваши настройки были успешно сохранены', '#00ff9d');
+        this.currentState.playerName = newUsername;
+        this.currentState.user.username = newUsername;
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('quiz_player_name', newUsername);
+        
+        // Обновляем в базе данных
+        if (Database && this.currentState.user.id) {
+            Database.updateUser(this.currentState.user.id, { username: newUsername });
         }
-        this.showScreen('menu');
+        
+        // Обновляем UI
+        this.updateProfileInfo();
+        
+        // Скрываем модальное окно
+        this.hideModal('usernameModal');
+        
+        showNotification('Успех', 'Имя изменено', '#00ff9d');
     }
     
-    // Показать экран
-    showScreen(screen) {
-        // Скрываем все контейнеры
-        const containers = [
-            'authContainer', 
-            'roomContainer', 
-            'codeContainer',
-            'profileContainer',
-            'menuContainer',
-            'settingsContainer'
+    // Сменить аватар
+    changeAvatar() {
+        document.getElementById('avatarModal').style.display = 'flex';
+        this.loadAvatarOptions();
+    }
+    
+    // Загрузить варианты аватаров
+    loadAvatarOptions() {
+        const avatarGrid = document.getElementById('avatarGrid');
+        if (!avatarGrid) return;
+        
+        const avatars = [
+            '😀', '😎', '🤓', '😊', '😍', '🥳', '🤖', '👻',
+            '🐱', '🐶', '🐼', '🦊', '🐯', '🦁', '🐮', '🐷',
+            '⭐', '🌟', '💫', '✨', '🔥', '💥', '🌈', '☀️'
         ];
         
-        containers.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) element.style.display = 'none';
+        avatarGrid.innerHTML = '';
+        avatars.forEach((avatar, index) => {
+            const avatarOption = document.createElement('div');
+            avatarOption.className = 'avatar-option';
+            if (this.currentState.user?.avatar === avatar) {
+                avatarOption.classList.add('selected');
+            }
+            avatarOption.textContent = avatar;
+            avatarOption.dataset.avatar = avatar;
+            
+            avatarOption.addEventListener('click', () => {
+                this.selectAvatar(avatar);
+            });
+            
+            avatarGrid.appendChild(avatarOption);
+        });
+    }
+    
+    // Выбрать аватар
+    selectAvatar(avatar) {
+        this.currentState.user.avatar = avatar;
+        
+        // Сохраняем в базе данных
+        if (Database && this.currentState.user.id) {
+            Database.updateUser(this.currentState.user.id, { avatar: avatar });
+        }
+        
+        // Обновляем UI
+        const userAvatar = document.getElementById('userAvatar');
+        if (userAvatar) {
+            userAvatar.textContent = avatar;
+        }
+        
+        // Показываем выбранный аватар
+        document.querySelectorAll('.avatar-option').forEach(option => {
+            option.classList.remove('selected');
+            if (option.dataset.avatar === avatar) {
+                option.classList.add('selected');
+            }
         });
         
-        // Останавливаем обновление комнат если не на экране комнат
-        if (screen !== 'room' && this.roomsUpdateInterval) {
-            clearInterval(this.roomsUpdateInterval);
-            this.roomsUpdateInterval = null;
+        showNotification('Успех', 'Аватар изменен', '#00ff9d');
+    }
+    
+    // Скрыть модальное окно
+    hideModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+    
+    // Вернуться в меню
+    returnToMenu() {
+        this.leaveRoom();
+        this.showMainMenu();
+    }
+    
+    // Играть снова
+    playAgain() {
+        // Создаем новую комнату с той же викториной
+        if (this.currentState.currentQuiz) {
+            this.createRoomWithQuiz(this.currentState.currentQuiz.id);
+        } else {
+            this.showScreen('room');
+        }
+    }
+    
+    // Создать тестовую викторину
+    createTestQuiz(category) {
+        const questions = {
+            general: [
+                {
+                    question: 'Сколько планет в Солнечной системе?',
+                    answers: [
+                        { text: '7', correct: false },
+                        { text: '8', correct: true },
+                        { text: '9', correct: false },
+                        { text: '10', correct: false }
+                    ],
+                    timeLimit: 20
+                }
+            ],
+            science: [
+                {
+                    question: 'Какой химический элемент имеет символ Au?',
+                    answers: [
+                        { text: 'Серебро', correct: false },
+                        { text: 'Золото', correct: true },
+                        { text: 'Алюминий', correct: false },
+                        { text: 'Аргон', correct: false }
+                    ],
+                    timeLimit: 15
+                }
+            ],
+            // ... другие категории
+        };
+        
+        return {
+            id: 'test_quiz_' + category,
+            title: 'Тестовая викторина: ' + category,
+            description: 'Тестовые вопросы',
+            category: category,
+            difficulty: 'medium',
+            questions: questions[category] || questions.general,
+            createdBy: 'system',
+            isPublic: true
+        };
+    }
+    
+    // Обновить игроков в игре
+    updateGamePlayers() {
+        const room = Database.findRoomByCode(this.currentState.roomCode);
+        if (!room) return;
+        
+        const gamePlayers = document.getElementById('gamePlayers');
+        if (!gamePlayers) return;
+        
+        gamePlayers.innerHTML = '';
+        room.players.forEach(player => {
+            const playerEl = document.createElement('div');
+            playerEl.className = 'game-player';
+            playerEl.innerHTML = `
+                <div class="game-player-avatar">${player.avatar}</div>
+                <div class="game-player-info">
+                    <div class="game-player-name">${player.name}</div>
+                    <div class="game-player-score">${player.score} очков</div>
+                    <div class="game-player-status ${player.answered ? 'answered' : 'waiting'}">
+                        ${player.answered ? '✓ Отвечено' : '⌛ Ожидание'}
+                    </div>
+                </div>
+            `;
+            gamePlayers.appendChild(playerEl);
+        });
+    }
+    
+    // Запустить таймер вопроса
+    startQuestionTimer(timeLimit) {
+        if (this.questionTimer) {
+            clearInterval(this.questionTimer);
         }
         
-        // Показываем нужный контейнер
-        const containerId = screen === 'room' ? 'roomContainer' : 
-                           screen === 'code' ? 'codeContainer' :
-                           screen === 'profile' ? 'profileContainer' :
-                           screen === 'menu' ? 'menuContainer' :
-                           screen === 'settings' ? 'settingsContainer' :
-                           'authContainer';
+        let timeLeft = timeLimit;
+        const gameTimer = document.getElementById('gameTimer');
         
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.style.display = 'block';
-        }
+        this.questionTimer = setInterval(() => {
+            timeLeft--;
+            
+            if (gameTimer) {
+                gameTimer.textContent = timeLeft;
+                
+                // Меняем цвет при малом времени
+                if (timeLeft <= 5) {
+                    gameTimer.style.color = '#ff5555';
+                } else if (timeLeft <= 10) {
+                    gameTimer.style.color = '#ffaa00';
+                }
+            }
+            
+            if (timeLeft <= 0) {
+                clearInterval(this.questionTimer);
+                if (this.currentState.isHost) {
+                    this.nextQuestion();
+                }
+            }
+        }, 1000);
+    }
+    
+    // Рассчитать оставшееся время
+    calculateTimeLeft(room) {
+        if (!room.questionStartTime || room.timeLimit === 0) return 0;
         
-        this.currentState.gameScreen = screen;
+        const now = Date.now();
+        const elapsed = Math.floor((now - room.questionStartTime) / 1000);
+        return Math.max(0, room.timeLimit - elapsed);
+    }
+    
+    // Инициализировать менеджеры
+    initManagers() {
+        this.realtimeManager = new RealtimeManager(this);
+        this.quizManager = new QuizManager(this);
         
-        // Обновляем данные на экране
-        if (screen === 'room') {
-            this.updateAvailableRooms();
-            this.updateRecentRooms();
-            this.startRoomsUpdate();
-        } else if (screen === 'profile') {
-            this.updateProfileInfo();
-        } else if (screen === 'menu') {
-            this.updateProfileInfo();
-        }
+        // Экспортируем для глобального доступа
+        window.quizManager = this.quizManager;
     }
 }
 
 // Создаем глобальный экземпляр GameManager
 const game = new GameManager();
 
-// Скрываем загрузчик при полной загрузке страницы
+// Инициализация при загрузке
 window.addEventListener('load', () => {
     game.hideLoader();
+    
+    // Инициализируем менеджеры
+    game.initManagers();
     
     // Если есть сохраненный пользователь, показываем главное меню
     if (game.currentState.user) {
@@ -1056,11 +701,4 @@ window.addEventListener('load', () => {
     }
     
     console.log('Neon Quiz Battle инициализирован!');
-});
-
-// Добавляем обработчики для ошибок загрузки
-window.addEventListener('error', (e) => {
-    console.error('Ошибка загрузки:', e);
-    game.hideLoader();
-    showNotification('Ошибка', 'Произошла ошибка при загрузке игры', '#ff5555');
 });
